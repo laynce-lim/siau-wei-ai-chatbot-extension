@@ -25,7 +25,7 @@ The program works by combining a chat interface, agent instruction files, Copilo
 * [Troubleshooting](#troubleshooting)
 * [Maintenance Notes](#maintenance-notes)
 * [Recommended Final Separation](#recommended-final-separation)
-* [Package Checklist](#package-checklist)
+* [Download and Install](#download-and-install)
 
 ---
 
@@ -840,32 +840,53 @@ This keeps the chatbot reusable while allowing the spreadsheet data to change in
 ---
 
 
-## Package Checklist
 
-Before sharing the VSIX, confirm these folders are included in the package:
+## Download and Install
 
-```
-out/
-agents/
-skills/
-tools/
-media/
-package.json
-requirements.txt
-```
+Windows users can install the extension using the packaged VSIX file.
 
-Confirm these folders are excluded:
+### Option 1: Install the VSIX Extension
 
-```
-.venv/
-node_modules/
-src/
-.vscode/
-```
+Download the latest VSIX package:
 
-To inspect the VSIX contents, run:
+[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/latest/download/siau-wei-ai-chatbot-extension.vsix)
+
+Then install it in PowerShell:
 
 ```powershell
-npx.cmd @vscode/vsce ls --tree
+code --install-extension ".\siau-wei-ai-chatbot-extension.vsix" --force
 ```
 
+After installation, restart VS Code.
+
+Open a workspace folder that contains your spreadsheet data, then run:
+
+```text
+Ctrl + Shift + P
+Siau Wei AI Chatbot: Open Chat
+```
+
+### Option 2: Download the Full Windows Project ZIP
+
+Download the full project ZIP:
+
+[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/latest/download/siau-wei-ai-chatbot-extension.vsix)
+
+After downloading:
+
+1. Extract the ZIP file.
+2. Open the extracted folder in VS Code.
+3. Run setup if needed:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\setup.ps1
+```
+
+4. Compile the extension:
+
+```powershell
+npm.cmd run compile
+```
+
+5. Package or debug the extension as needed.
