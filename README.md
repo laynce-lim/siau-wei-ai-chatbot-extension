@@ -849,7 +849,7 @@ Windows users can install the extension using the packaged VSIX file.
 
 Download the latest VSIX package:
 
-[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/latest/download/siau-wei-ai-chatbot-extension.vsix)
+[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/download/v0.1.0/siau-wei-ai-chatbot-extension-0.1.0.vsix)
 
 Then install it in PowerShell:
 
@@ -870,7 +870,7 @@ Siau Wei AI Chatbot: Open Chat
 
 Download the full project ZIP:
 
-[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/latest/download/siau-wei-ai-chatbot-extension.vsix)
+[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/archive/refs/tags/v0.1.0.zip)
 
 After downloading:
 
