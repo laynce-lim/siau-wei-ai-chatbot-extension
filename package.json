@@ -1,0 +1,44 @@
+{
+  "name": "siau-wei-ai-chatbot-extension",
+  "displayName": "Siau Wei AI Chatbot",
+  "description": "VS Code Copilot-powered chatbot for CCV platform utilization data.",
+  "version": "0.1.0",
+  "publisher": "laynce",
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:siauWeiChat.openChat"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "siauWeiChat.openChat",
+        "title": "Siau Wei AI Chatbot: Open Chat"
+      }
+    ],
+    "configuration": {
+      "title": "Siau Wei AI Chatbot",
+      "properties": {
+        "siauWeiChat.dataFolder": {
+          "type": "string",
+          "default": "data",
+          "description": "Folder containing CCV CSV/Excel files."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "1.93.0",
+    "typescript": "^5.0.0"
+  }
+}
