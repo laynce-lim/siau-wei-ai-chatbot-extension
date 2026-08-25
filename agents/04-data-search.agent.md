@@ -60,7 +60,7 @@ Use this agent for:
 ## Recommended Tool
 
 ```powershell
-python tools/search_data.py --file "{{SELECTED_FILE}}" --query "{{USER_QUERY}}"
+python tools/query_data.py --data "{{DATA_FOLDER}}" --question "{{USER_QUERY}}" --plan "{{QUERY_PLAN_JSON}}"
 ```
 
 If tool syntax differs in the current project, use `toolRunner.ts` to call the

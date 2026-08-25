@@ -41,6 +41,13 @@ interface CachedFile {
 
 type Manifest = Record<string, CachedFile>;
 
+interface ManifestFile {
+  syncedAt?: string;
+  files: Manifest;
+}
+
+const SYNC_TTL_MS = 10 * 60 * 1000;
+
 export class SharePointDataProvider implements DataProvider {
   public readonly kind = 'sharepoint' as const;
 
@@ -50,7 +57,7 @@ export class SharePointDataProvider implements DataProvider {
     return vscode.Uri.file(this.cacheFolder());
   }
 
-  async prepareDataFolder(): Promise<vscode.Uri> {
+  async prepareDataFolder(options?: { force?: boolean }): Promise<vscode.Uri> {
     const settings = readSettings();
 
     if (!settings.siteUrl) {
@@ -61,6 +68,15 @@ export class SharePointDataProvider implements DataProvider {
     }
 
     const cacheFolder = this.cacheFolder();
+    const stored = await this.readManifest();
+
+    // Avoid re-downloading on every question in a conversation.
+    if (!options?.force && stored.syncedAt && Object.keys(stored.files).length) {
+      const age = Date.now() - Date.parse(stored.syncedAt);
+      if (Number.isFinite(age) && age >= 0 && age < SYNC_TTL_MS) {
+        return vscode.Uri.file(cacheFolder);
+      }
+    }
 
     return vscode.window.withProgress(
       {
@@ -79,7 +95,7 @@ export class SharePointDataProvider implements DataProvider {
 
         await fs.mkdir(cacheFolder, { recursive: true });
 
-        const manifest = await this.readManifest();
+        const manifest = stored.files;
         const nextManifest: Manifest = {};
 
         progress.report({ message: 'Downloading files...' });
@@ -108,6 +124,18 @@ export class SharePointDataProvider implements DataProvider {
         return vscode.Uri.file(cacheFolder);
       }
     );
+  }
+
+  async describe(): Promise<string> {
+    const settings = readSettings();
+    const stored = await this.readManifest();
+    const count = Object.keys(stored.files).length;
+
+    if (!stored.syncedAt) {
+      return `SharePoint: ${settings.siteUrl || 'not configured'} (not synced yet)`;
+    }
+
+    return `SharePoint: ${count} file${count === 1 ? '' : 's'}, synced ${describeAge(stored.syncedAt)}`;
   }
 
   private async getAccessToken(settings: SharePointSettings): Promise<string> {
@@ -154,20 +182,28 @@ export class SharePointDataProvider implements DataProvider {
     return path.join(path.dirname(this.cacheFolder()), 'sync-manifest.json');
   }
 
-  private async readManifest(): Promise<Manifest> {
+  private async readManifest(): Promise<ManifestFile> {
     try {
       const raw = await fs.readFile(this.manifestPath(), 'utf8');
-      const parsed = JSON.parse(raw) as Manifest;
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      const parsed = JSON.parse(raw) as ManifestFile | Manifest;
+
+      if (parsed && typeof parsed === 'object' && 'files' in parsed) {
+        const typed = parsed as ManifestFile;
+        return { syncedAt: typed.syncedAt, files: typed.files ?? {} };
+      }
+
+      // Manifests written before sync timestamps were recorded.
+      return { files: (parsed as Manifest) ?? {} };
     } catch {
-      return {};
+      return { files: {} };
     }
   }
 
-  private async writeManifest(manifest: Manifest): Promise<void> {
+  private async writeManifest(files: Manifest): Promise<void> {
     const target = this.manifestPath();
+    const payload: ManifestFile = { syncedAt: new Date().toISOString(), files };
     await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, JSON.stringify(manifest, null, 2), 'utf8');
+    await fs.writeFile(target, JSON.stringify(payload, null, 2), 'utf8');
   }
 
   private async syncFolder(options: {
@@ -445,4 +481,23 @@ async function fileExists(target: string): Promise<boolean> {
 function trimError(body: string): string {
   const text = body.replace(/\s+/g, ' ').trim();
   return text.length > 400 ? `${text.slice(0, 400)}...` : text;
+}
+
+function describeAge(isoDate: string): string {
+  const minutes = Math.floor((Date.now() - Date.parse(isoDate)) / 60000);
+
+  if (!Number.isFinite(minutes) || minutes < 1) {
+    return 'just now';
+  }
+  if (minutes < 60) {
+    return `${minutes} min ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
 }

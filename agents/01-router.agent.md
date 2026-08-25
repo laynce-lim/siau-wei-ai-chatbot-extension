@@ -52,15 +52,18 @@ Return:
 
 | Intent | Trigger patterns | Data area | Next path | Tool |
 |:-------|:-----------------|:----------|:----------|:-----|
-| `host-lookup` | "who owns", "what config", "what priority", specific host ID | `ccv-system` | Business Terms → File Discovery → Data Search → Validation | `search_data.py` |
-| `filtered-search` | "show", "list", "find", "which systems", owner/config/priority filters | `ccv-system` | Business Terms → File Discovery → Data Search → Validation | `search_data.py` |
-| `count-analysis` | "how many", "count", "most", "least", "group by", "compare" | `ccv-system` | Business Terms → File Discovery → Data Analysis → Validation | `analyze_data.py` |
-| `system-summary` | "summarize systems", "overview of hosts", "platform allocation" | `ccv-system` | File Discovery → Data Analysis → Validation | `analyze_data.py` |
-| `contact-lookup` | "contact", "who do I ask", "owner of dashboard", "guide contact" | `contact-reference` | Business Terms → File Discovery → Data Search → Validation | `search_data.py` |
-| `methodology-lookup` | "data source", "methodology", "BMC", "SUT collector", "host base", "target base" | `utilization-methodology` | Business Terms → File Discovery → Data Search → Validation | `search_data.py` |
-| `how-to` | "how to install", "rpm", "deb", "service status", "uninstall" | `utilization-methodology` | Business Terms → File Discovery → Data Search → Validation | `search_data.py` |
-| `data-quality` | "missing", "blank", "empty", "duplicate", "bad data", "incomplete" | auto | Business Terms → File Discovery → Data Analysis → Validation | `analyze_data.py` |
-| `cross-file-summary` | "summarize all CCV files", "what data do we have" | `cross-file` | File Discovery → Data Analysis → Validation | `inspect_workbook.py` + `analyze_data.py` |
+| `host-lookup` | "who owns", "what config", "what priority", specific host ID | `ccv-system` | Business Terms → File Discovery → Data Search → Validation | `query_data.py` |
+| `filtered-search` | "show", "list", "find", "which systems", owner/config/priority filters | `ccv-system` | Business Terms → File Discovery → Data Search → Validation | `query_data.py` |
+| `count-analysis` | "how many", "count", "most", "least", "group by", "compare" | `ccv-system` | Business Terms → File Discovery → Data Analysis → Validation | `query_data.py` |
+| `system-summary` | "summarize systems", "overview of hosts", "platform allocation" | `ccv-system` | File Discovery → Data Analysis → Validation | `query_data.py` |
+| `contact-lookup` | "contact", "who do I ask", "owner of dashboard", "guide contact" | `contact-reference` | Business Terms → File Discovery → Data Search → Validation | `query_data.py` |
+| `methodology-lookup` | "data source", "methodology", "BMC", "SUT collector", "host base", "target base" | `utilization-methodology` | Business Terms → File Discovery → Data Search → Validation | `query_data.py` |
+| `how-to` | "how to install", "rpm", "deb", "service status", "uninstall" | `utilization-methodology` | Business Terms → File Discovery → Data Search → Validation | `query_data.py` |
+| `data-quality` | "missing", "blank", "empty", "duplicate", "bad data", "incomplete" | auto | Business Terms → File Discovery → Data Analysis → Validation | `query_data.py` |
+| `trend-analysis` | "over time", "trend", "growth", "monthly", "since", "increase", "decrease", "spike", "drop" | auto | Business Terms → File Discovery → Trend Analysis → Validation | `trend_analysis.py` |
+| `cross-file-join` | "link", "match", "combine", "which X has no Y", "compare the two files", "missing from" | `cross-file` | Business Terms → File Discovery → Cross-File Join → Validation | `join_data.py` |
+| `chart-request` | "chart", "graph", "plot", "visualize", "show me a picture", "pie", "bar chart" | auto | Business Terms → File Discovery → Chart Generation → Validation | `make_chart.py` |
+| `cross-file-summary` | "summarize all CCV files", "what data do we have" | `cross-file` | File Discovery → Data Analysis → Validation | `inspect_workbook.py` + `query_data.py` |
 | `clarify` | Ambiguous target or no matching CCV concept | `unknown` | Ask one follow-up | none |
 
 ## Parameter Extraction
@@ -79,8 +82,14 @@ Extract when present. Do not assume values not in the question.
 | `database` | source DB values such as `LAVA` |
 | `item` | iConsole, dashboard, user guide, BMC, SUT collector, methodology item |
 | `link_requested` | "link", "URL", "where is", "open" |
-| `requested_format` | table, list, count, summary, steps |
+| `requested_format` | table, list, count, summary, steps, chart |
 | `source_file` | explicit file name if user gives one |
+| `date_column` | explicit timeline column when the user names one |
+| `value_column` | numeric column to sum instead of counting rows |
+| `group_by` | column to group or compare by |
+| `freq` | `d`, `w`, `m`, `q`, `y` from "daily", "weekly", "monthly", "quarterly", "yearly" |
+| `join_key` | column that links two files, such as host name |
+| `chart_type` | `bar`, `line`, or `pie` when the user names one |
 
 ## Clarification Rules
 
@@ -113,7 +122,7 @@ Return structured output to the orchestrator:
     "05-data-analysis.agent.md",
     "06-answer-validation.agent.md"
   ],
-  "tool": "analyze_data.py",
+  "tool": "query_data.py",
   "clarification_needed": false
 }
 ```

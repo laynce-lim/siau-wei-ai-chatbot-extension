@@ -7,3 +7,8 @@ src/**
 **/*.pyc
 .git/**
 .gitignore
+tests/**
+.pytest_cache/**
+requirements-dev.txt
+*.zip
+package-log.txt

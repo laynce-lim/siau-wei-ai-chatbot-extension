@@ -43,6 +43,26 @@
           "default": "data",
           "description": "Folder containing CCV CSV/Excel files. Used when siauWeiChat.dataSource is \"local\"."
         },
+        "siauWeiChat.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Full path to a Python executable with pandas, openpyxl and matplotlib installed. Leave empty to auto-detect the workspace virtual environment, then the Python extension's selected interpreter."
+        },
+        "siauWeiChat.modelVendor": {
+          "type": "string",
+          "default": "copilot",
+          "description": "Language model vendor to request from VS Code."
+        },
+        "siauWeiChat.modelFamily": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Preferred language model family. Falls back to any available model when this family is not offered."
+        },
+        "siauWeiChat.privacy.sendValues": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include example cell values in the data profile sent to the language model. Turning this off sends only column names, types and counts, which protects sensitive data but reduces answer quality."
+        },
         "siauWeiChat.sharePoint.siteUrl": {
           "type": "string",
           "default": "",
@@ -73,7 +93,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./"
+    "compile": "tsc -p ./",
+    "test:py": "python -m pytest tests -q"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

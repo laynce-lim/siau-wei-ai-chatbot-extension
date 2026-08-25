@@ -29,7 +29,7 @@
     {
       "label": "Test Data Tools",
       "type": "shell",
-      "command": ".\\.venv\\Scripts\\python.exe tools/list_files.py --data data; .\\.venv\\Scripts\\python.exe tools/inspect_workbook.py --data data; .\\.venv\\Scripts\\python.exe tools/analyze_data.py --data data --question \"how many systems by owner\"",
+      "command": ".\\.venv\\Scripts\\python.exe tools/list_files.py --data data; .\\.venv\\Scripts\\python.exe tools/inspect_workbook.py --data data; .\\.venv\\Scripts\\python.exe tools/profile_data.py --data data",
       "options": {
         "shell": {
           "executable": "powershell.exe",

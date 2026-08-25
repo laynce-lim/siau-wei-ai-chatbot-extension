@@ -11,7 +11,7 @@ python --version
 
 Write-Host "Testing Python data tools..."
 python tools/list_files.py --data data
-python tools/analyze_data.py --data data --question "Which PM has the most delayed orders?"
+python tools/profile_data.py --data data
 
 Write-Host "If Node modules are installed, compiling extension..."
 if (Test-Path "node_modules") {

@@ -19,18 +19,18 @@ current spreadsheet contents.
 
 | User asks | Type | Data area | Tool |
 |:----------|:-----|:----------|:-----|
-| Who owns host X? | lookup | `ccv-system` | `search_data.py` |
-| What is the config/priority/CPU/database for host X? | lookup | `ccv-system` | `search_data.py` |
-| Show all systems for owner X | filtered search | `ccv-system` | `search_data.py` |
-| Show all Priority 1 systems | filtered search | `ccv-system` | `search_data.py` |
-| How many systems are 1S vs 2S? | grouped analysis | `ccv-system` | `analyze_data.py` |
-| Which owner has the most systems? | ranking analysis | `ccv-system` | `analyze_data.py` |
-| Which rows are missing CPU/database/contact/link? | data quality | selected data area | `analyze_data.py` |
-| Who is the contact for the utilization dashboard? | contact lookup | `contact-reference` | `search_data.py` |
-| What is the iConsole link? | contact/link lookup | `contact-reference` or `ccv-system` | `search_data.py` |
-| What are the platform utilization data sources? | methodology lookup | `utilization-methodology` | `search_data.py` |
-| How do I install the SUT collector? | how-to | `utilization-methodology` | `search_data.py` |
-| Summarize all CCV files | cross-file summary | `cross-file` | `inspect_workbook.py` + `analyze_data.py` |
+| Who owns host X? | lookup | `ccv-system` | `query_data.py` |
+| What is the config/priority/CPU/database for host X? | lookup | `ccv-system` | `query_data.py` |
+| Show all systems for owner X | filtered search | `ccv-system` | `query_data.py` |
+| Show all Priority 1 systems | filtered search | `ccv-system` | `query_data.py` |
+| How many systems are 1S vs 2S? | grouped analysis | `ccv-system` | `query_data.py` |
+| Which owner has the most systems? | ranking analysis | `ccv-system` | `query_data.py` |
+| Which rows are missing CPU/database/contact/link? | data quality | selected data area | `query_data.py` |
+| Who is the contact for the utilization dashboard? | contact lookup | `contact-reference` | `query_data.py` |
+| What is the iConsole link? | contact/link lookup | `contact-reference` or `ccv-system` | `query_data.py` |
+| What are the platform utilization data sources? | methodology lookup | `utilization-methodology` | `query_data.py` |
+| How do I install the SUT collector? | how-to | `utilization-methodology` | `query_data.py` |
+| Summarize all CCV files | cross-file summary | `cross-file` | `inspect_workbook.py` + `query_data.py` |
 
 ## Lookup Questions
 

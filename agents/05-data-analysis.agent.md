@@ -37,7 +37,7 @@ Use this agent for:
 ## Recommended Tool
 
 ```powershell
-python tools/analyze_data.py --file "{{SELECTED_FILE}}" --question "{{USER_QUERY}}"
+python tools/query_data.py --data "{{DATA_FOLDER}}" --question "{{USER_QUERY}}" --plan "{{QUERY_PLAN_JSON}}"
 ```
 
 For cross-file summaries, analyze each selected CCV file separately, then combine

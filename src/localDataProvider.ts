@@ -43,4 +43,8 @@ export class LocalDataProvider implements DataProvider {
 
     return uri;
   }
+
+  async describe(): Promise<string> {
+    return `Local folder: ${this.getDataFolderUri().fsPath}`;
+  }
 }

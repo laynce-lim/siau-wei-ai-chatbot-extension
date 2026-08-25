@@ -97,6 +97,74 @@ body {
   background: var(--input-bg);
 }
 
+.bubble.step {
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.bubble p {
+  margin: 0 0 8px;
+}
+
+.bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.bubble ul {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+.bubble h3,
+.bubble h4,
+.bubble h5,
+.bubble h6 {
+  margin: 6px 0;
+  font-size: 1em;
+}
+
+.bubble table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  width: 100%;
+  font-size: 0.95em;
+}
+
+.bubble th,
+.bubble td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.bubble th {
+  background: var(--input-bg);
+  font-weight: 600;
+}
+
+.bubble pre {
+  background: var(--vscode-textCodeBlock-background);
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.data-status {
+  opacity: 0.7;
+  font-size: 0.85em;
+  margin: 4px 0 0;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
 code {
   background: var(--vscode-textCodeBlock-background);
   padding: 1px 4px;

@@ -7,3 +7,4 @@ __pycache__/
 .env
 .vscode-test/
 .vscode/settings.json
+.pytest_cache/

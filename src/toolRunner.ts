@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import * as childProcess from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,9 +11,15 @@ export interface ToolResult {
 }
 
 export class ToolRunner {
+  private cachedPython?: string;
+
   constructor(private readonly projectRoot: string) {}
 
-  async runTool(toolName: string, args: string[] = []): Promise<ToolResult> {
+  async runTool(
+    toolName: string,
+    args: string[] = [],
+    token?: vscode.CancellationToken
+  ): Promise<ToolResult> {
     const toolPath = path.join(this.projectRoot, 'tools', toolName);
 
     if (!fs.existsSync(toolPath)) {
@@ -23,7 +30,7 @@ export class ToolRunner {
       };
     }
 
-    const pythonExe = this.getPythonExecutable();
+    const pythonExe = await this.getPythonExecutable();
 
     return new Promise((resolve) => {
       const child = childProcess.spawn(
@@ -38,6 +45,21 @@ export class ToolRunner {
 
       let stdout = '';
       let stderr = '';
+      let settled = false;
+
+      const cancelSubscription = token?.onCancellationRequested(() => {
+        child.kill();
+        finish({ ok: false, stdout, stderr: 'Cancelled.' });
+      });
+
+      function finish(result: ToolResult) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cancelSubscription?.dispose();
+        resolve(result);
+      }
 
       child.stdout.on('data', (data) => {
         stdout += data.toString();
@@ -48,39 +70,89 @@ export class ToolRunner {
       });
 
       child.on('error', (error) => {
-        resolve({
+        finish({
           ok: false,
           stdout,
-          stderr: error.message
+          stderr:
+            `${error.message}. Tried Python executable: ${pythonExe}. ` +
+            'Set "siauWeiChat.pythonPath" to a Python that has pandas installed.'
         });
       });
 
       child.on('close', (code) => {
-        const parsed = tryParseJson(stdout);
-
-        resolve({
+        finish({
           ok: code === 0,
           stdout,
           stderr,
-          json: parsed
+          json: tryParseJson(stdout)
         });
       });
     });
   }
 
-  private getPythonExecutable(): string {
-    const localVenvPython = path.join(
-      this.projectRoot,
-      '.venv',
-      'Scripts',
-      'python.exe'
-    );
-
-    if (fs.existsSync(localVenvPython)) {
-      return localVenvPython;
+  /**
+   * The packaged extension ships without a virtualenv, so search the open
+   * workspace and the Python extension before falling back to bare "python".
+   */
+  async getPythonExecutable(): Promise<string> {
+    if (this.cachedPython) {
+      return this.cachedPython;
     }
 
-    return 'python';
+    const configured = vscode.workspace
+      .getConfiguration('siauWeiChat')
+      .get<string>('pythonPath')
+      ?.trim();
+
+    if (configured) {
+      this.cachedPython = configured;
+      return configured;
+    }
+
+    const roots = [
+      ...(vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+      this.projectRoot
+    ];
+
+    for (const root of roots) {
+      for (const relative of [['.venv', 'Scripts', 'python.exe'], ['.venv', 'bin', 'python']]) {
+        const candidate = path.join(root, ...relative);
+        if (fs.existsSync(candidate)) {
+          this.cachedPython = candidate;
+          return candidate;
+        }
+      }
+    }
+
+    this.cachedPython = (await getPythonExtensionInterpreter()) || 'python';
+    return this.cachedPython;
+  }
+
+  resetPythonCache(): void {
+    this.cachedPython = undefined;
+  }
+}
+
+async function getPythonExtensionInterpreter(): Promise<string | undefined> {
+  try {
+    const extension = vscode.extensions.getExtension('ms-python.python');
+    if (!extension) {
+      return undefined;
+    }
+
+    const api = extension.isActive ? extension.exports : await extension.activate();
+    const resource = vscode.workspace.workspaceFolders?.[0]?.uri;
+
+    const active = api?.environments?.getActiveEnvironmentPath?.(resource);
+    if (active?.path) {
+      const resolved = await api.environments.resolveEnvironment(active);
+      return resolved?.executable?.uri?.fsPath ?? active.path;
+    }
+
+    const legacy = api?.settings?.getExecutionDetails?.(resource)?.execCommand;
+    return Array.isArray(legacy) ? legacy[0] : undefined;
+  } catch {
+    return undefined;
   }
 }
 

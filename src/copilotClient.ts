@@ -1,7 +1,11 @@
 import * as vscode from 'vscode';
 
 export class CopilotClient {
-  async ask(prompt: string, token?: vscode.CancellationToken): Promise<string> {
+  async ask(
+    prompt: string,
+    token?: vscode.CancellationToken,
+    onFragment?: (fragment: string) => void
+  ): Promise<string> {
     const config = vscode.workspace.getConfiguration('siauWeiChat');
     const vendor = config.get<string>('modelVendor') || 'copilot';
     const family = config.get<string>('modelFamily') || 'gpt-4o';
@@ -17,14 +21,25 @@ export class CopilotClient {
       throw new Error('No VS Code language model is available. Make sure GitHub Copilot/model access is enabled in VS Code.');
     }
 
-    const model = models[0];
-    const messages = [vscode.LanguageModelChatMessage.User(prompt)];
-    const response = await model.sendRequest(messages, {}, token || new vscode.CancellationTokenSource().token);
+    const source = token ? undefined : new vscode.CancellationTokenSource();
+    const activeToken = token ?? source!.token;
 
-    let text = '';
-    for await (const fragment of response.text) {
-      text += fragment;
+    try {
+      const model = models[0];
+      const messages = [vscode.LanguageModelChatMessage.User(prompt)];
+      const response = await model.sendRequest(messages, {}, activeToken);
+
+      let text = '';
+      for await (const fragment of response.text) {
+        if (activeToken.isCancellationRequested) {
+          break;
+        }
+        text += fragment;
+        onFragment?.(fragment);
+      }
+      return text.trim();
+    } finally {
+      source?.dispose();
     }
-    return text.trim();
   }
 }

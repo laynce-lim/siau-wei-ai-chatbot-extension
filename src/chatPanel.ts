@@ -7,6 +7,7 @@ export class ChatPanel {
   private readonly extensionUri: vscode.Uri;
   private readonly orchestrator: AgentOrchestrator;
   private disposables: vscode.Disposable[] = [];
+  private activeRequest?: vscode.CancellationTokenSource;
 
   public static createOrShow(context: vscode.ExtensionContext) {
     const column = vscode.window.activeTextEditor?.viewColumn;
@@ -23,7 +24,10 @@ export class ChatPanel {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')]
+        localResourceRoots: [
+          vscode.Uri.joinPath(context.extensionUri, 'media'),
+          vscode.Uri.joinPath(context.globalStorageUri, 'charts')
+        ]
       }
     );
 
@@ -50,15 +54,61 @@ export class ChatPanel {
             }
 
             this.postStatus('Thinking...');
+            this.activeRequest?.cancel();
+            const source = new vscode.CancellationTokenSource();
+            this.activeRequest = source;
+
             try {
-              const result = await this.orchestrator.answer(question);
-              this.postAssistantMessage(result.answer, result.debug);
+              const result = await this.orchestrator.answer(question, {
+                token: source.token,
+                onStep: (text) => this.panel.webview.postMessage({ command: 'step', text }),
+                onFragment: (fragment) =>
+                  this.panel.webview.postMessage({ command: 'answerChunk', text: fragment })
+              });
+
+              if (!source.token.isCancellationRequested) {
+                this.postAssistantMessage(result.answer, result.debug, result.chartPath);
+              }
             } catch (error: unknown) {
               const err = error instanceof Error ? error.message : String(error);
-              this.postAssistantMessage(`I ran into an error: ${err}`);
+              if (!source.token.isCancellationRequested) {
+                this.postAssistantMessage(`I ran into an error: ${err}`);
+              }
+            } finally {
+              source.dispose();
+              if (this.activeRequest === source) {
+                this.activeRequest = undefined;
+              }
+              this.postStatus('Ready');
+            }
+            break;
+          }
+          case 'stop': {
+            this.activeRequest?.cancel();
+            this.panel.webview.postMessage({ command: 'stopped' });
+            this.postStatus('Ready');
+            break;
+          }
+          case 'refreshData': {
+            this.postStatus('Refreshing data...');
+            try {
+              const description = await this.orchestrator.refreshData();
+              this.postDataStatus(description);
+            } catch (error: unknown) {
+              const err = error instanceof Error ? error.message : String(error);
+              this.postAssistantMessage(`Could not refresh the data: ${err}`);
             } finally {
               this.postStatus('Ready');
             }
+            break;
+          }
+          case 'ready': {
+            this.postDataStatus(await this.orchestrator.describeDataSource());
+            break;
+          }
+          case 'newChat': {
+            this.orchestrator.clearHistory();
+            this.postStatus('Ready');
             break;
           }
           case 'openDataFolder': {
@@ -78,16 +128,25 @@ export class ChatPanel {
     );
   }
 
-  private postAssistantMessage(text: string, debug?: unknown) {
-    this.panel.webview.postMessage({ command: 'answer', text, debug });
+  private postAssistantMessage(text: string, debug?: unknown, chartPath?: string) {
+    const chart = chartPath
+      ? this.panel.webview.asWebviewUri(vscode.Uri.file(chartPath)).toString()
+      : undefined;
+
+    this.panel.webview.postMessage({ command: 'answer', text, debug, chart });
   }
 
   private postStatus(text: string) {
     this.panel.webview.postMessage({ command: 'status', text });
   }
 
+  private postDataStatus(text: string) {
+    this.panel.webview.postMessage({ command: 'dataStatus', text });
+  }
+
   public dispose() {
     ChatPanel.currentPanel = undefined;
+    this.activeRequest?.cancel();
     this.panel.dispose();
 
     while (this.disposables.length) {
@@ -107,7 +166,7 @@ export class ChatPanel {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource}; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="${styleUri}" rel="stylesheet">
   <title>Siau Wei AI Chatbot</title>
@@ -118,8 +177,11 @@ export class ChatPanel {
       <div>
         <h1>Siau Wei AI Chatbot</h1>
         <p>Ask questions about Excel or CSV files in this VS Code workspace.</p>
+        <p id="dataStatus" class="data-status">Checking data source...</p>
       </div>
       <button id="openDataFolder" class="secondary">Open data folder</button>
+      <button id="refreshData" class="secondary">Refresh data</button>
+      <button id="newChat" class="secondary">New chat</button>
     </header>
 
     <section id="messages" class="messages">
@@ -135,6 +197,7 @@ export class ChatPanel {
       <textarea id="question" rows="3" placeholder="Ask a question about the data..."></textarea>
       <div class="composer-actions">
         <span id="status">Ready</span>
+        <button id="stop" class="secondary" disabled>Stop</button>
         <button id="send">Send</button>
       </div>
     </footer>

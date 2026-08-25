@@ -15,7 +15,12 @@ export interface DataProvider {
   /**
    * Makes sure the folder exists and is up to date, then returns it.
    */
-  prepareDataFolder(): Promise<vscode.Uri>;
+  prepareDataFolder(options?: { force?: boolean }): Promise<vscode.Uri>;
+
+  /**
+   * Short line describing where data comes from and how fresh it is.
+   */
+  describe(): Promise<string>;
 }
 
 export function getConfiguredDataSource(): DataSourceKind {
