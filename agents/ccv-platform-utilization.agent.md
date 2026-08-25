@@ -106,8 +106,8 @@ User NL Query in custom VS Code chat window
        ▼
 ┌─────────────────────────────────────────────┐
 │ tools/*.py                                  │
-│  list_files │ inspect_workbook              │
-│  search_data │ analyze_data │ validate      │
+│  profile_data │ query_data                  │
+│  trend_analysis │ join_data │ make_chart    │
 └──────┬──────────────────────────────────────┘
        │
        ▼

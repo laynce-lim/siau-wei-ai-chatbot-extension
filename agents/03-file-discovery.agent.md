@@ -69,14 +69,15 @@ If multiple candidate files match:
 
 ## Tool Usage
 
-Use discovery tools before answering:
+The orchestrator already supplies a full data profile before you are consulted,
+so do not ask for a discovery tool to be run. Choose the file from the profile,
+which lists every file, sheet, column and value range currently available:
 
 ```powershell
-python tools/list_files.py
-python tools/inspect_workbook.py --file "data/<candidate-file>.csv"
+python tools/profile_data.py --data "{{DATA_FOLDER}}"
 ```
 
-For Excel workbooks, inspect sheet names and headers from each sheet.
+For Excel workbooks, each sheet appears as a separate entry in that profile.
 
 ## Encoding Handling
 
