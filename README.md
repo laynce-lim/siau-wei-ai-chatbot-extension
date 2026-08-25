@@ -191,7 +191,8 @@ siau-wei-ai-chatbot-extension/
 │   ├── make_chart.py        renders a PNG chart
 │   ├── list_files.py        standalone diagnostic
 │   ├── inspect_workbook.py  standalone diagnostic
-│   └── validate_sources.py  standalone diagnostic
+│   ├── validate_sources.py  standalone diagnostic
+│   └── check_env.py         reports interpreter and package health
 │
 ├── tests/
 │   └── pytest suite for the Python tools
@@ -348,6 +349,12 @@ the model has to guess what the values look like.
 | -------------------------------------------- | ------------------------------------------- |
 | `Siau Wei AI Chatbot: Open Chat`             | Opens the chat panel.                       |
 | `Siau Wei AI Chatbot: Sync Data Source`      | Signs in and syncs, or validates local mode. |
+| `Siau Wei AI Chatbot: Check Setup`           | Reports the Python interpreter, package versions and data status. |
+
+Run **Check Setup** first if anything misbehaves. It prints the interpreter the
+extension actually resolved, which package is missing, how many data files it
+can see, and offers to copy the exact `pip install` command for that
+interpreter.
 
 ---
 
@@ -471,9 +478,24 @@ python -m pytest tests -q
 
 The tests cover the query plan executor (every filter operator, grouping,
 metrics, projection and limits), the JSON sanitiser that keeps tool output
-parseable by the extension, the mtime-based table cache, and the column
-heuristics for dates and grouping. They use temporary fixture data and never
-touch your real files.
+parseable by the extension, the mtime-based table cache, the column heuristics
+for dates and grouping, and multi-sheet Excel handling. They use temporary
+fixture data and never touch your real files.
+
+The same suite runs in CI on Linux and Windows, together with the TypeScript
+build, via [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+### Checking the environment
+
+To confirm an interpreter can run the tools:
+
+```powershell
+python tools\check_env.py
+```
+
+It reports the Python version, which packages are installed, and a ready-made
+install command for anything missing. The **Check Setup** command runs the same
+probe from inside VS Code.
 
 ---
 
@@ -969,10 +991,14 @@ contain spaces, parentheses, or special characters.
 
 ### Python or pandas not found
 
-The error message names the interpreter that was tried. Confirm that interpreter
-has the packages:
+Run `Siau Wei AI Chatbot: Check Setup` from the command palette. It names the
+interpreter that was resolved and lists any missing packages, then offers to
+copy the correct install command.
+
+The same information is available from a terminal:
 
 ```powershell
+& "C:\path\to\python.exe" tools\check_env.py
 & "C:\path\to\python.exe" -m pip install -r requirements.txt
 ```
 
