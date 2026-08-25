@@ -6,3 +6,4 @@ __pycache__/
 *.pyc
 .env
 .vscode-test/
+.vscode/settings.json

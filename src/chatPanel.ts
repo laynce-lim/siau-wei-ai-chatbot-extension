@@ -8,7 +8,7 @@ export class ChatPanel {
   private readonly orchestrator: AgentOrchestrator;
   private disposables: vscode.Disposable[] = [];
 
-  public static createOrShow(extensionUri: vscode.Uri) {
+  public static createOrShow(context: vscode.ExtensionContext) {
     const column = vscode.window.activeTextEditor?.viewColumn;
 
     if (ChatPanel.currentPanel) {
@@ -23,17 +23,17 @@ export class ChatPanel {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')]
       }
     );
 
-    ChatPanel.currentPanel = new ChatPanel(panel, extensionUri);
+    ChatPanel.currentPanel = new ChatPanel(panel, context);
   }
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+  private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
     this.panel = panel;
-    this.extensionUri = extensionUri;
-    this.orchestrator = new AgentOrchestrator();
+    this.extensionUri = context.extensionUri;
+    this.orchestrator = new AgentOrchestrator(context);
 
     this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
 
@@ -62,7 +62,13 @@ export class ChatPanel {
             break;
           }
           case 'openDataFolder': {
-            await vscode.commands.executeCommand('revealFileInOS', this.orchestrator.getDataFolderUri());
+            try {
+              const folder = await this.orchestrator.prepareDataFolder();
+              await vscode.commands.executeCommand('revealFileInOS', folder);
+            } catch (error: unknown) {
+              const err = error instanceof Error ? error.message : String(error);
+              this.postAssistantMessage(`Could not open the data folder: ${err}`);
+            }
             break;
           }
         }

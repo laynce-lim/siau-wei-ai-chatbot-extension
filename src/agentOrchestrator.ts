@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
 import * as path from 'path';
 import { CopilotClient } from './copilotClient';
 import { ToolRunner } from './toolRunner';
+import { DataProvider, createDataProvider, getConfiguredDataSource } from './dataProvider';
 
 interface RouteDecision {
   route: 'lookup' | 'search' | 'analysis' | 'summary' | 'clarify';
@@ -22,7 +22,7 @@ export class AgentOrchestrator {
   private readonly copilot: CopilotClient;
   private readonly tools: ToolRunner;
 
-  constructor() {
+  constructor(private readonly context: vscode.ExtensionContext) {
     // __dirname is usually:
     // extension-root/out
     // so one level up is the installed extension/project root.
@@ -37,25 +37,24 @@ export class AgentOrchestrator {
     this.tools = new ToolRunner(this.extensionRoot);
   }
 
+  /** Rebuilt per call so switching "siauWeiChat.dataSource" takes effect immediately. */
+  private get dataProvider(): DataProvider {
+    return createDataProvider(this.context, this.extensionRoot);
+  }
+
   getDataFolderUri(): vscode.Uri {
-    const dataFolder =
-      vscode.workspace.getConfiguration('siauWeiChat').get<string>('dataFolder') || 'data';
+    return this.dataProvider.getDataFolderUri();
+  }
 
-    // Prefer data from the current opened workspace.
-    if (this.workspaceRoot) {
-      const workspaceDataFolder = path.join(this.workspaceRoot, dataFolder);
-
-      if (fsSync.existsSync(workspaceDataFolder)) {
-        return vscode.Uri.file(workspaceDataFolder);
-      }
-    }
-
-    // Fallback to extension data folder only if workspace data does not exist.
-    return vscode.Uri.file(path.join(this.extensionRoot, dataFolder));
+  /** Signs in and syncs when in SharePoint mode; validates the folder in local mode. */
+  async prepareDataFolder(): Promise<vscode.Uri> {
+    return this.dataProvider.prepareDataFolder();
   }
 
   async answer(question: string): Promise<OrchestratorResponse> {
-    const dataArg = ['--data', this.getDataFolderUri().fsPath];
+    const dataSource = getConfiguredDataSource();
+    const dataFolder = await this.prepareDataFolder();
+    const dataArg = ['--data', dataFolder.fsPath];
 
     const [
       router,
@@ -174,7 +173,8 @@ Write the final answer for the user. Follow these rules:
       debug: {
         extensionRoot: this.extensionRoot,
         workspaceRoot: this.workspaceRoot,
-        dataFolder: this.getDataFolderUri().fsPath,
+        dataSource,
+        dataFolder: dataFolder.fsPath,
         route,
         fileList: fileList.json,
         schema: schema.json,

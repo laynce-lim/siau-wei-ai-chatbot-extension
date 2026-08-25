@@ -11,7 +11,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:siauWeiChat.openChat"
+    "onCommand:siauWeiChat.openChat",
+    "onCommand:siauWeiChat.syncData"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -19,15 +20,53 @@
       {
         "command": "siauWeiChat.openChat",
         "title": "Siau Wei AI Chatbot: Open Chat"
+      },
+      {
+        "command": "siauWeiChat.syncData",
+        "title": "Siau Wei AI Chatbot: Sync Data Source"
       }
     ],
     "configuration": {
       "title": "Siau Wei AI Chatbot",
       "properties": {
+        "siauWeiChat.dataSource": {
+          "type": "string",
+          "enum": [
+            "local",
+            "sharepoint"
+          ],
+          "default": "local",
+          "description": "Choose whether the chatbot reads data from a local folder or syncs from SharePoint."
+        },
         "siauWeiChat.dataFolder": {
           "type": "string",
           "default": "data",
-          "description": "Folder containing CCV CSV/Excel files."
+          "description": "Folder containing CCV CSV/Excel files. Used when siauWeiChat.dataSource is \"local\"."
+        },
+        "siauWeiChat.sharePoint.siteUrl": {
+          "type": "string",
+          "default": "",
+          "description": "SharePoint site URL, for example https://company.sharepoint.com/sites/TeamSite."
+        },
+        "siauWeiChat.sharePoint.driveName": {
+          "type": "string",
+          "default": "Documents",
+          "description": "SharePoint document library name."
+        },
+        "siauWeiChat.sharePoint.folderPath": {
+          "type": "string",
+          "default": "",
+          "description": "Folder path inside the SharePoint document library."
+        },
+        "siauWeiChat.sharePoint.tenantId": {
+          "type": "string",
+          "default": "",
+          "description": "Optional Microsoft Entra tenant ID used for sign-in. Not a secret. Leave empty to use the default tenant."
+        },
+        "siauWeiChat.sharePoint.clientId": {
+          "type": "string",
+          "default": "",
+          "description": "Optional Microsoft Entra application (client) ID used for sign-in. Not a secret. Leave empty to use the built-in VS Code Microsoft application."
         }
       }
     }

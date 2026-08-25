@@ -1,0 +1,448 @@
+import * as vscode from 'vscode';
+import * as fs from 'fs/promises';
+import * as crypto from 'crypto';
+import * as path from 'path';
+import { DataProvider } from './dataProvider';
+
+const GRAPH_ROOT = 'https://graph.microsoft.com/v1.0';
+const GRAPH_SCOPES = ['https://graph.microsoft.com/Sites.Read.All', 'offline_access'];
+const DATA_EXTENSIONS = ['.csv', '.xlsx', '.xlsm', '.xlsb', '.xls'];
+const MAX_FOLDER_DEPTH = 6;
+
+interface SharePointSettings {
+  siteUrl: string;
+  driveName: string;
+  folderPath: string;
+  tenantId: string;
+  clientId: string;
+}
+
+interface DriveItem {
+  id: string;
+  name: string;
+  size?: number;
+  eTag?: string;
+  lastModifiedDateTime?: string;
+  folder?: { childCount?: number };
+  file?: { mimeType?: string };
+  '@microsoft.graph.downloadUrl'?: string;
+}
+
+interface GraphList<T> {
+  value: T[];
+  '@odata.nextLink'?: string;
+}
+
+interface CachedFile {
+  eTag?: string;
+  size?: number;
+  lastModifiedDateTime?: string;
+}
+
+type Manifest = Record<string, CachedFile>;
+
+export class SharePointDataProvider implements DataProvider {
+  public readonly kind = 'sharepoint' as const;
+
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
+  getDataFolderUri(): vscode.Uri {
+    return vscode.Uri.file(this.cacheFolder());
+  }
+
+  async prepareDataFolder(): Promise<vscode.Uri> {
+    const settings = readSettings();
+
+    if (!settings.siteUrl) {
+      throw new Error(
+        'SharePoint mode is enabled but "siauWeiChat.sharePoint.siteUrl" is empty. ' +
+          'Example: https://company.sharepoint.com/sites/TeamSite'
+      );
+    }
+
+    const cacheFolder = this.cacheFolder();
+
+    return vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Syncing SharePoint data...',
+        cancellable: false
+      },
+      async (progress) => {
+        const token = await this.getAccessToken(settings);
+
+        progress.report({ message: 'Resolving site...' });
+        const siteId = await resolveSiteId(token, settings.siteUrl);
+
+        progress.report({ message: 'Resolving document library...' });
+        const driveId = await resolveDriveId(token, siteId, settings.driveName);
+
+        await fs.mkdir(cacheFolder, { recursive: true });
+
+        const manifest = await this.readManifest();
+        const nextManifest: Manifest = {};
+
+        progress.report({ message: 'Downloading files...' });
+        await this.syncFolder({
+          token,
+          driveId,
+          listUrl: buildChildrenUrl(driveId, settings.folderPath),
+          relativePath: '',
+          cacheFolder,
+          manifest,
+          nextManifest,
+          depth: 0,
+          progress
+        });
+
+        await this.removeStaleFiles(cacheFolder, nextManifest);
+        await this.writeManifest(nextManifest);
+
+        if (Object.keys(nextManifest).length === 0) {
+          throw new Error(
+            `No CSV or Excel files were found in SharePoint library "${settings.driveName}"` +
+              (settings.folderPath ? ` under folder "${settings.folderPath}".` : '.')
+          );
+        }
+
+        return vscode.Uri.file(cacheFolder);
+      }
+    );
+  }
+
+  private async getAccessToken(settings: SharePointSettings): Promise<string> {
+    const scopes = [...GRAPH_SCOPES];
+
+    // Non-secret routing hints supported by the built-in VS Code Microsoft provider.
+    if (settings.tenantId) {
+      scopes.push(`VSCODE_TENANT:${settings.tenantId}`);
+    }
+    if (settings.clientId) {
+      scopes.push(`VSCODE_CLIENT_ID:${settings.clientId}`);
+    }
+
+    const session = await vscode.authentication.getSession('microsoft', scopes, {
+      createIfNone: true
+    });
+
+    if (!session?.accessToken) {
+      throw new Error('Microsoft sign-in was cancelled or failed.');
+    }
+
+    return session.accessToken;
+  }
+
+  private cacheFolder(): string {
+    const settings = readSettings();
+    const key = crypto
+      .createHash('sha256')
+      .update(
+        [
+          settings.siteUrl.toLowerCase(),
+          settings.driveName.toLowerCase(),
+          settings.folderPath.toLowerCase()
+        ].join('|')
+      )
+      .digest('hex')
+      .slice(0, 16);
+
+    return path.join(this.context.globalStorageUri.fsPath, 'sharepoint-cache', key, 'data');
+  }
+
+  private manifestPath(): string {
+    // Kept beside the data folder so Python tools never see it.
+    return path.join(path.dirname(this.cacheFolder()), 'sync-manifest.json');
+  }
+
+  private async readManifest(): Promise<Manifest> {
+    try {
+      const raw = await fs.readFile(this.manifestPath(), 'utf8');
+      const parsed = JSON.parse(raw) as Manifest;
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private async writeManifest(manifest: Manifest): Promise<void> {
+    const target = this.manifestPath();
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, JSON.stringify(manifest, null, 2), 'utf8');
+  }
+
+  private async syncFolder(options: {
+    token: string;
+    driveId: string;
+    listUrl: string;
+    relativePath: string;
+    cacheFolder: string;
+    manifest: Manifest;
+    nextManifest: Manifest;
+    depth: number;
+    progress: vscode.Progress<{ message?: string }>;
+  }): Promise<void> {
+    const { token, driveId, cacheFolder, manifest, nextManifest, progress } = options;
+
+    if (options.depth > MAX_FOLDER_DEPTH) {
+      return;
+    }
+
+    let url: string | undefined = options.listUrl;
+
+    while (url) {
+      const page: GraphList<DriveItem> = await graphGet<GraphList<DriveItem>>(url, token);
+
+      for (const item of page.value ?? []) {
+        if (item.folder) {
+          await this.syncFolder({
+            ...options,
+            listUrl: `${GRAPH_ROOT}/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(
+              item.id
+            )}/children?$top=200&$select=id,name,size,eTag,lastModifiedDateTime,folder,file,@microsoft.graph.downloadUrl`,
+            relativePath: joinRelative(options.relativePath, item.name),
+            depth: options.depth + 1
+          });
+          continue;
+        }
+
+        if (!item.file || !isDataFile(item.name)) {
+          continue;
+        }
+
+        const relativePath = joinRelative(options.relativePath, item.name);
+        const targetPath = safeJoin(cacheFolder, relativePath);
+        const cached = manifest[relativePath];
+
+        nextManifest[relativePath] = {
+          eTag: item.eTag,
+          size: item.size,
+          lastModifiedDateTime: item.lastModifiedDateTime
+        };
+
+        const unchanged =
+          cached &&
+          cached.eTag === item.eTag &&
+          cached.size === item.size &&
+          cached.lastModifiedDateTime === item.lastModifiedDateTime &&
+          (await fileExists(targetPath));
+
+        if (unchanged) {
+          continue;
+        }
+
+        progress.report({ message: `Downloading ${relativePath}...` });
+        await downloadDriveItem(token, driveId, item, targetPath);
+      }
+
+      url = page['@odata.nextLink'];
+    }
+  }
+
+  private async removeStaleFiles(cacheFolder: string, manifest: Manifest): Promise<void> {
+    const keep = new Set(
+      Object.keys(manifest).map((relativePath) => safeJoin(cacheFolder, relativePath))
+    );
+
+    const walk = async (dir: string): Promise<void> => {
+      let entries;
+      try {
+        entries = await fs.readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+
+        if (entry.isDirectory()) {
+          await walk(full);
+          continue;
+        }
+
+        if (isDataFile(entry.name) && !keep.has(full)) {
+          await fs.rm(full, { force: true });
+        }
+      }
+    };
+
+    await walk(cacheFolder);
+  }
+}
+
+function readSettings(): SharePointSettings {
+  const config = vscode.workspace.getConfiguration('siauWeiChat');
+
+  return {
+    siteUrl: (config.get<string>('sharePoint.siteUrl') || '').trim(),
+    driveName: (config.get<string>('sharePoint.driveName') || 'Documents').trim(),
+    folderPath: (config.get<string>('sharePoint.folderPath') || '').trim(),
+    tenantId: (config.get<string>('sharePoint.tenantId') || '').trim(),
+    clientId: (config.get<string>('sharePoint.clientId') || '').trim()
+  };
+}
+
+async function graphGet<T>(url: string, token: string): Promise<T> {
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(
+      `Microsoft Graph request failed (${response.status} ${response.statusText}). ${trimError(body)}`
+    );
+  }
+
+  return (await response.json()) as T;
+}
+
+async function resolveSiteId(token: string, siteUrl: string): Promise<string> {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(siteUrl);
+  } catch {
+    throw new Error(`"siauWeiChat.sharePoint.siteUrl" is not a valid URL: ${siteUrl}`);
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new Error('"siauWeiChat.sharePoint.siteUrl" must use https.');
+  }
+
+  const sitePath = parsed.pathname.replace(/\/+$/, '');
+  const endpoint =
+    sitePath && sitePath !== '/'
+      ? `${GRAPH_ROOT}/sites/${parsed.hostname}:${sitePath}`
+      : `${GRAPH_ROOT}/sites/${parsed.hostname}`;
+
+  const site = await graphGet<{ id: string }>(`${endpoint}?$select=id`, token);
+
+  if (!site.id) {
+    throw new Error(`Could not resolve SharePoint site: ${siteUrl}`);
+  }
+
+  return site.id;
+}
+
+async function resolveDriveId(
+  token: string,
+  siteId: string,
+  driveName: string
+): Promise<string> {
+  const drives = await graphGet<GraphList<{ id: string; name: string }>>(
+    `${GRAPH_ROOT}/sites/${encodeURIComponent(siteId)}/drives?$select=id,name`,
+    token
+  );
+
+  const wanted = driveName.toLowerCase();
+  const match = (drives.value ?? []).find((drive) => drive.name?.toLowerCase() === wanted);
+
+  if (match) {
+    return match.id;
+  }
+
+  const defaultDrive = await graphGet<{ id: string }>(
+    `${GRAPH_ROOT}/sites/${encodeURIComponent(siteId)}/drive?$select=id`,
+    token
+  );
+
+  if (!defaultDrive.id) {
+    const available = (drives.value ?? []).map((drive) => drive.name).join(', ');
+    throw new Error(
+      `Document library "${driveName}" was not found. Available libraries: ${available || 'none'}`
+    );
+  }
+
+  return defaultDrive.id;
+}
+
+function buildChildrenUrl(driveId: string, folderPath: string): string {
+  const select =
+    '$top=200&$select=id,name,size,eTag,lastModifiedDateTime,folder,file,@microsoft.graph.downloadUrl';
+  const base = `${GRAPH_ROOT}/drives/${encodeURIComponent(driveId)}/root`;
+  const cleaned = normalizeRemotePath(folderPath);
+
+  return cleaned
+    ? `${base}:/${cleaned}:/children?${select}`
+    : `${base}/children?${select}`;
+}
+
+function normalizeRemotePath(folderPath: string): string {
+  return folderPath
+    .split(/[\\/]+/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+async function downloadDriveItem(
+  token: string,
+  driveId: string,
+  item: DriveItem,
+  targetPath: string
+): Promise<void> {
+  const downloadUrl = item['@microsoft.graph.downloadUrl'];
+
+  const response = downloadUrl
+    ? await fetch(downloadUrl)
+    : await fetch(
+        `${GRAPH_ROOT}/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(
+          item.id
+        )}/content`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download "${item.name}" (${response.status} ${response.statusText}).`
+    );
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(targetPath, buffer);
+}
+
+function isDataFile(name: string): boolean {
+  const ext = path.extname(name).toLowerCase();
+  return DATA_EXTENSIONS.includes(ext);
+}
+
+function joinRelative(parent: string, name: string): string {
+  return parent ? `${parent}/${name}` : name;
+}
+
+/** Blocks path traversal from remote file names. */
+function safeJoin(root: string, relativePath: string): string {
+  const segments = relativePath
+    .split('/')
+    .map((segment) => segment.replace(/[\\/:*?"<>|]/g, '_').trim())
+    .filter((segment) => segment.length > 0 && segment !== '.' && segment !== '..');
+
+  const resolved = path.resolve(root, ...segments);
+  const rootResolved = path.resolve(root);
+
+  if (resolved !== rootResolved && !resolved.startsWith(rootResolved + path.sep)) {
+    throw new Error(`Rejected unsafe SharePoint file path: ${relativePath}`);
+  }
+
+  return resolved;
+}
+
+async function fileExists(target: string): Promise<boolean> {
+  try {
+    await fs.access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function trimError(body: string): string {
+  const text = body.replace(/\s+/g, ' ').trim();
+  return text.length > 400 ? `${text.slice(0, 400)}...` : text;
+}
