@@ -1007,9 +1007,55 @@ The same information is available from a terminal:
 Sign-in only happens when data is actually needed, which means the first
 question or the `Sync Data Source` command — not when the panel opens. If a
 prompt is missed, check the **Accounts** icon at the bottom of the Activity Bar
-for a pending request. If the tenant blocks consent for `Sites.Read.All`, set
-`siauWeiChat.sharePoint.clientId` and `siauWeiChat.sharePoint.tenantId` to your
-own app registration.
+for a pending request.
+
+### Sign-in fails with AADSTS65002
+
+```
+AADSTS65002: Consent between first party application aebc6443-996d-45c2-90f0-388ff96faa56
+and first party resource 00000003-0000-0000-c000-000000000000 must be configured
+via preauthorization
+```
+
+`aebc6443...` is VS Code's own application and `00000003...` is Microsoft Graph.
+Microsoft only pre-authorizes VS Code's application for a small set of Graph
+scopes, and `Sites.Read.All` is not one of them. No extension setting works
+around this, because the token request is rejected before tenant policy is
+considered.
+
+The fix is to use your own Entra application:
+
+1. Azure Portal → Microsoft Entra ID → App registrations → **New registration**.
+2. Under **Authentication**, add a **Mobile and desktop applications** platform
+   with the redirect URI `https://vscode.dev/redirect`.
+3. Under **API permissions**, add Microsoft Graph → **Delegated** →
+   `Sites.Read.All`, then **Grant admin consent**. In a managed tenant this step
+   normally needs an administrator.
+4. Copy the Application (client) ID and Directory (tenant) ID into settings:
+
+```json
+{
+  "siauWeiChat.sharePoint.clientId": "<application id>",
+  "siauWeiChat.sharePoint.tenantId": "<directory id>"
+}
+```
+
+Neither value is a secret. The extension passes them to VS Code's Microsoft
+authentication provider using its `VSCODE_CLIENT_ID` and `VSCODE_TENANT` scopes.
+
+Until admin consent is granted, use local mode: export the files to a folder and
+set `"siauWeiChat.dataSource": "local"`.
+
+### Other sign-in errors
+
+| Code | Meaning |
+|:-----|:--------|
+| `AADSTS65001` / `AADSTS90094` | Admin consent has not been granted for `Sites.Read.All`. |
+| `AADSTS700016` / `AADSTS90002` | The client ID or tenant ID is wrong. |
+| `AADSTS50011` | `https://vscode.dev/redirect` is missing from the app registration. |
+
+The extension translates these codes into the required action, so read the error
+notification before digging into Azure.
 
 ---
 

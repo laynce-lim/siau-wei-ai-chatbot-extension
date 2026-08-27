@@ -149,9 +149,13 @@ export class SharePointDataProvider implements DataProvider {
       scopes.push(`VSCODE_CLIENT_ID:${settings.clientId}`);
     }
 
-    const session = await vscode.authentication.getSession('microsoft', scopes, {
-      createIfNone: true
-    });
+    let session: vscode.AuthenticationSession | undefined;
+
+    try {
+      session = await vscode.authentication.getSession('microsoft', scopes, { createIfNone: true });
+    } catch (error) {
+      throw new Error(explainSignInFailure(error, settings));
+    }
 
     if (!session?.accessToken) {
       throw new Error('Microsoft sign-in was cancelled or failed.');
@@ -481,6 +485,50 @@ async function fileExists(target: string): Promise<boolean> {
 function trimError(body: string): string {
   const text = body.replace(/\s+/g, ' ').trim();
   return text.length > 400 ? `${text.slice(0, 400)}...` : text;
+}
+
+/**
+ * Entra returns these as opaque codes, so translate the ones that block this
+ * extension into the action the user actually has to take.
+ */
+function explainSignInFailure(error: unknown, settings: SharePointSettings): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const usingOwnApp = Boolean(settings.clientId);
+
+  if (message.includes('AADSTS65002')) {
+    return (
+      'Microsoft blocked the sign-in because VS Code\'s built-in application is not ' +
+      'pre-authorized to request SharePoint permissions (AADSTS65002). This cannot be ' +
+      'fixed in the extension. Register your own Entra application, grant it the ' +
+      'delegated Microsoft Graph permission "Sites.Read.All" with admin consent, add ' +
+      'the redirect URI https://vscode.dev/redirect as a mobile/desktop platform, then ' +
+      'set "siauWeiChat.sharePoint.clientId" and "siauWeiChat.sharePoint.tenantId".'
+    );
+  }
+
+  if (message.includes('AADSTS65001') || message.includes('AADSTS90094')) {
+    return (
+      'Sign-in needs administrator consent for the SharePoint permission ' +
+      `(${usingOwnApp ? 'your application' : 'the application'} has not been granted ` +
+      'Sites.Read.All). Ask an administrator to grant admin consent for that permission.'
+    );
+  }
+
+  if (message.includes('AADSTS700016') || message.includes('AADSTS90002')) {
+    return (
+      'The configured application or tenant was not found. Check ' +
+      '"siauWeiChat.sharePoint.clientId" and "siauWeiChat.sharePoint.tenantId".'
+    );
+  }
+
+  if (message.includes('AADSTS50011')) {
+    return (
+      'The redirect URI is not registered. Add https://vscode.dev/redirect to your ' +
+      'Entra application under Authentication, as a Mobile and desktop platform.'
+    );
+  }
+
+  return `Microsoft sign-in failed: ${message}`;
 }
 
 function describeAge(isoDate: string): string {
