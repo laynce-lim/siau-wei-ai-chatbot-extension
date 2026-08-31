@@ -43,6 +43,15 @@ export class ChatPanel {
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
+    this.disposables.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('siauWeiChat')) {
+          this.postSources();
+          this.orchestrator.describeDataSource().then((d) => this.postDataStatus(d));
+        }
+      })
+    );
+
     this.panel.webview.onDidReceiveMessage(
       async (message: { command: string; text?: string }) => {
         switch (message.command) {
@@ -104,6 +113,24 @@ export class ChatPanel {
           }
           case 'ready': {
             this.postDataStatus(await this.orchestrator.describeDataSource());
+            this.postSources();
+            break;
+          }
+          case 'selectSource': {
+            const name = (message as { name?: string }).name;
+            if (name) {
+              this.postStatus('Switching source...');
+              try {
+                const description = await this.orchestrator.selectSource(name);
+                this.postDataStatus(description);
+                this.postSources();
+              } catch (error: unknown) {
+                const err = error instanceof Error ? error.message : String(error);
+                this.postAssistantMessage(`Could not switch data source: ${err}`);
+              } finally {
+                this.postStatus('Ready');
+              }
+            }
             break;
           }
           case 'newChat': {
@@ -167,6 +194,7 @@ export class ChatPanel {
     this.postStatus('Switching source...');
     try {
       this.postDataStatus(await this.orchestrator.selectSource(picked.name));
+      this.postSources();
     } finally {
       this.postStatus('Ready');
     }
@@ -186,6 +214,20 @@ export class ChatPanel {
 
   private postDataStatus(text: string) {
     this.panel.webview.postMessage({ command: 'dataStatus', text });
+  }
+
+  private postSources() {
+    const sources = this.orchestrator.listSources();
+    const active = this.orchestrator.activeSource;
+    this.panel.webview.postMessage({
+      command: 'sources',
+      sources: sources.map((s) => ({
+        name: s.name,
+        description: s.description ?? s.path ?? s.folderPath ?? s.siteUrl ?? '',
+        kind: s.kind
+      })),
+      active: active.name
+    });
   }
 
   public dispose() {
@@ -223,10 +265,17 @@ export class ChatPanel {
         <p>Ask questions about Excel or CSV files in this VS Code workspace.</p>
         <p id="dataStatus" class="data-status">Checking data source...</p>
       </div>
-      <button id="pickSource" class="secondary">Change source</button>
-      <button id="openDataFolder" class="secondary">Open source</button>
-      <button id="refreshData" class="secondary">Refresh data</button>
-      <button id="newChat" class="secondary">New chat</button>
+      <div class="header-actions">
+        <div class="source-picker-wrapper">
+          <label for="sourceSelect" class="source-label">Folder / Source:</label>
+          <select id="sourceSelect" class="source-select">
+            <option value="">Loading sources...</option>
+          </select>
+        </div>
+        <button id="openDataFolder" class="secondary">Open source</button>
+        <button id="refreshData" class="secondary">Refresh data</button>
+        <button id="newChat" class="secondary">New chat</button>
+      </div>
     </header>
 
     <section id="messages" class="messages">

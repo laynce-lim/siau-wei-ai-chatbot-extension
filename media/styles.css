@@ -29,12 +29,13 @@ body {
 }
 
 .header {
-  padding: 18px 22px;
+  padding: 16px 22px;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .header h1 {
@@ -43,8 +44,49 @@ body {
 }
 
 .header p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.source-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--input-bg);
+  border: 1px solid var(--vscode-input-border, var(--border));
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+
+.source-label {
+  font-size: 0.85em;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.source-select {
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  font-family: inherit;
+  font-size: 0.9em;
+  padding: 4px 6px;
+  outline: none;
+  cursor: pointer;
+  max-width: 220px;
+}
+
+.source-select option {
+  background: var(--input-bg);
+  color: var(--fg);
 }
 
 .messages {

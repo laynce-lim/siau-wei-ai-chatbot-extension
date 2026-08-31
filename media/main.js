@@ -8,7 +8,7 @@ const statusEl = document.getElementById('status');
 const dataStatusEl = document.getElementById('dataStatus');
 const openDataFolder = document.getElementById('openDataFolder');
 const refreshData = document.getElementById('refreshData');
-const pickSource = document.getElementById('pickSource');
+const sourceSelect = document.getElementById('sourceSelect');
 const newChat = document.getElementById('newChat');
 
 let thinkingEl = null;
@@ -221,7 +221,12 @@ question.addEventListener('keydown', (event) => {
 });
 openDataFolder.addEventListener('click', () => vscode.postMessage({ command: 'openDataFolder' }));
 refreshData.addEventListener('click', () => vscode.postMessage({ command: 'refreshData' }));
-pickSource.addEventListener('click', () => vscode.postMessage({ command: 'pickSource' }));
+sourceSelect.addEventListener('change', () => {
+  const name = sourceSelect.value;
+  if (name) {
+    vscode.postMessage({ command: 'selectSource', name });
+  }
+});
 newChat.addEventListener('click', () => {
   clearStep();
   endStream();
@@ -263,6 +268,25 @@ window.addEventListener('message', (event) => {
       break;
     case 'dataStatus':
       dataStatusEl.textContent = message.text;
+      break;
+    case 'sources':
+      sourceSelect.innerHTML = '';
+      if (!message.sources || message.sources.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No sources configured';
+        sourceSelect.appendChild(opt);
+      } else {
+        message.sources.forEach((src) => {
+          const opt = document.createElement('option');
+          opt.value = src.name;
+          opt.textContent = src.name + (src.kind === 'sharepoint' ? ' (SharePoint)' : '');
+          if (src.name === message.active) {
+            opt.selected = true;
+          }
+          sourceSelect.appendChild(opt);
+        });
+      }
       break;
   }
 });
