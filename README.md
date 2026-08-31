@@ -252,9 +252,56 @@ The agents are Markdown instruction files. They do not contain live data. Live d
 ## Data Sources
 
 The extension can read spreadsheets from a **local folder** or sync them from
-**SharePoint**. Pick one with `siauWeiChat.dataSource`.
+**SharePoint**. You can configure several named sources and switch between them
+in the chat.
 
-### Local mode (default)
+### Multiple named sources (recommended)
+
+```json
+"siauWeiChat.sources": [
+  {
+    "name": "VST Agent",
+    "path": "C:\\Users\\you\\OneDrive - Contoso\\VST_Agent",
+    "webUrl": "https://contoso.sharepoint.com/sites/team/Shared%20Documents/VST_Agent"
+  },
+  {
+    "name": "Platform Utilization",
+    "siteUrl": "https://contoso.sharepoint.com/sites/OtherSite",
+    "driveName": "Documents",
+    "folderPath": "Reports/2026"
+  }
+]
+```
+
+Entries are completely independent, so unrelated sites and folders can sit side
+by side. An entry with a `path` is a local folder; an entry with a `siteUrl` is
+synced from SharePoint. Set `kind` explicitly if you need to override that.
+
+Use **Change source** in the chat header, or the command
+`Siau Wei AI Chatbot: Select Data Source`, to pick which one questions apply to.
+The choice is remembered, and each source keeps its own cache and file profile.
+
+`webUrl` is optional. When present, the **Open source** button opens that link in
+a browser and answers can cite files as clickable links.
+
+### Reading SharePoint without Graph access
+
+The simplest way to use SharePoint data is to let OneDrive sync it:
+
+1. Open the folder in SharePoint in a browser.
+2. Click **Add shortcut to OneDrive** (or **Sync**).
+3. In File Explorer, right-click the synced folder and choose
+   **Always keep on this device**, so the files are real rather than cloud
+   placeholders.
+4. Add the local path as a source, as in the first example above.
+
+This requires no app registration and no administrator involvement, and OneDrive
+keeps the files current. Because table reads are cached by file modification
+time, changed files are re-read automatically.
+
+### Single source (older settings)
+
+If `siauWeiChat.sources` is empty, these settings are used instead:
 
 ```json
 {
@@ -266,17 +313,6 @@ The extension can read spreadsheets from a **local folder** or sync them from
 `siauWeiChat.dataFolder` may be relative or absolute. A relative path is resolved
 against the **opened workspace folder** first, and falls back to the installed
 extension folder only if the workspace has no such folder.
-
-This is useful when the extension is used with another workspace, such as a
-SharePoint refresh project:
-
-```
-ccv-m365-mcp-sharepoint-refresh/
-└── data/
-    ├── raw_excel/
-    └── csv_export/
-        └── exported CSV files
-```
 
 ### SharePoint mode
 
@@ -301,10 +337,14 @@ and sync on demand, or use the **Refresh data** button in the chat header. The
 chat header shows how long ago the last sync happened. Unchanged files are
 skipped on later syncs, and files deleted in SharePoint are removed locally.
 
+Graph access needs an app registration in most tenants — see
+[Sign-in fails with AADSTS65002](#sign-in-fails-with-aadsts65002). The OneDrive
+approach above avoids that entirely.
+
 No credentials, tokens, client secrets or passwords are stored in this
-repository or in settings. If your tenant requires a specific app registration,
-set `siauWeiChat.sharePoint.tenantId` and `siauWeiChat.sharePoint.clientId` —
-both are identifiers, not secrets.
+repository or in settings. `siauWeiChat.sharePoint.tenantId` and
+`siauWeiChat.sharePoint.clientId` are identifiers, not secrets, and apply to
+every SharePoint source.
 
 To refresh answers in either mode, replace or regenerate the CSV/Excel files.
 Agent, skill, and Markdown files never need editing when the data changes.
@@ -315,7 +355,8 @@ Agent, skill, and Markdown files never need editing when the data changes.
 
 | Setting                              | Default       | Purpose                                                                     |
 | ------------------------------------ | ------------- | --------------------------------------------------------------------------- |
-| `siauWeiChat.dataSource`             | `local`       | `local` or `sharepoint`.                                                    |
+| `siauWeiChat.sources`                | `[]`          | Named local or SharePoint sources you can switch between in the chat.       |
+| `siauWeiChat.dataSource`             | `local`       | `local` or `sharepoint`. Used only when `sources` is empty.                 |
 | `siauWeiChat.dataFolder`             | `data`        | Folder for local mode. Relative to the workspace, or absolute.              |
 | `siauWeiChat.pythonPath`             | *(empty)*     | Python executable to use. Auto-detected when empty.                         |
 | `siauWeiChat.modelVendor`            | `copilot`     | Language model vendor requested from VS Code.                               |
@@ -348,6 +389,7 @@ the model has to guess what the values look like.
 | Command                                      | Purpose                                     |
 | -------------------------------------------- | ------------------------------------------- |
 | `Siau Wei AI Chatbot: Open Chat`             | Opens the chat panel.                       |
+| `Siau Wei AI Chatbot: Select Data Source`    | Chooses which configured source to query.   |
 | `Siau Wei AI Chatbot: Sync Data Source`      | Signs in and syncs, or validates local mode. |
 | `Siau Wei AI Chatbot: Check Setup`           | Reports the Python interpreter, package versions and data status. |
 

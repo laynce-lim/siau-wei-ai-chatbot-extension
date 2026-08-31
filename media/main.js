@@ -8,6 +8,7 @@ const statusEl = document.getElementById('status');
 const dataStatusEl = document.getElementById('dataStatus');
 const openDataFolder = document.getElementById('openDataFolder');
 const refreshData = document.getElementById('refreshData');
+const pickSource = document.getElementById('pickSource');
 const newChat = document.getElementById('newChat');
 
 let thinkingEl = null;
@@ -24,7 +25,9 @@ function escapeHtml(text) {
 function inline(text) {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>');
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Only http(s) links, so a crafted answer cannot inject javascript: URLs.
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>');
 }
 
 function splitRow(line) {
@@ -218,6 +221,7 @@ question.addEventListener('keydown', (event) => {
 });
 openDataFolder.addEventListener('click', () => vscode.postMessage({ command: 'openDataFolder' }));
 refreshData.addEventListener('click', () => vscode.postMessage({ command: 'refreshData' }));
+pickSource.addEventListener('click', () => vscode.postMessage({ command: 'pickSource' }));
 newChat.addEventListener('click', () => {
   clearStep();
   endStream();

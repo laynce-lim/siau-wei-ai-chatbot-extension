@@ -4,6 +4,7 @@ import * as path from 'path';
 import { CopilotClient } from './copilotClient';
 import { ToolRunner, ToolResult } from './toolRunner';
 import { DataProvider, createDataProvider, getConfiguredDataSource } from './dataProvider';
+import { DataSourceConfig, browserUrlFor, getActiveSource, listSources, setActiveSource } from './sources';
 
 type PlanMode = 'query' | 'trend' | 'join' | 'chart' | 'clarify';
 
@@ -90,6 +91,25 @@ export class AgentOrchestrator {
   /** Rebuilt per call so switching "siauWeiChat.dataSource" takes effect immediately. */
   private get dataProvider(): DataProvider {
     return createDataProvider(this.context, this.extensionRoot);
+  }
+
+  get activeSource(): DataSourceConfig {
+    return getActiveSource(this.context);
+  }
+
+  listSources(): DataSourceConfig[] {
+    return listSources();
+  }
+
+  /** Switching source invalidates the cached profile, which is per folder. */
+  async selectSource(name: string): Promise<string> {
+    await setActiveSource(this.context, name);
+    this.profileCache = undefined;
+    return this.describeDataSource();
+  }
+
+  browserUrl(): string | undefined {
+    return browserUrlFor(this.activeSource);
   }
 
   getDataFolderUri(): vscode.Uri {
@@ -276,6 +296,8 @@ remove a filter the question did not really require.`;
       .join('\n\n');
 
     step('Writing the answer...');
+    const sourceLinks = this.buildSourceLinks(profile);
+
     const finalPrompt = `
 ${answerValidation}
 
@@ -308,12 +330,16 @@ ${safeJson(toolResult.json ?? {
 User question:
 ${question}
 
+Links to the source files, if any:
+${safeJson(sourceLinks)}
+
 Write the final answer for the user. Follow these rules:
 - Be short, direct and conversational.
 - Lead with the answer, then the supporting number.
 - Say which filters and columns were actually used when the question was vague,
   so the user can correct you.
-- Mention source file/sheet when available.
+- Name the source file. When a link for that file appears above, cite it as a
+  markdown link like [file name](url). Never invent a link.
 - If the result is empty or the plan failed, say plainly what was searched for,
   what exists in the data instead, and ask one focused follow-up question.
 - Do not invent data.
@@ -322,7 +348,6 @@ Write the final answer for the user. Follow these rules:
 
     const answer = await this.copilot.ask(finalPrompt, token, onFragment);
     const chartPath = extractChartPath(toolResult.json);
-
     this.history.push({ question, answer });
     this.history = this.history.slice(-HISTORY_TURNS);
 
@@ -345,6 +370,36 @@ Write the final answer for the user. Follow these rules:
 
   clearHistory(): void {
     this.history = [];
+  }
+
+  /** Maps each profiled file to a browser link so answers can cite it. */
+  private buildSourceLinks(profile: unknown): Record<string, string> {
+    const provider = this.dataProvider;
+    const links: Record<string, string> = {};
+
+    if (!provider.linkForFile || !profile || typeof profile !== 'object') {
+      return links;
+    }
+
+    const tables = (profile as { tables?: unknown }).tables;
+    if (!Array.isArray(tables)) {
+      return links;
+    }
+
+    for (const table of tables) {
+      const file = (table as { file?: unknown })?.file;
+      if (typeof file !== 'string') {
+        continue;
+      }
+
+      const name = path.basename(file);
+      const url = provider.linkForFile(name);
+      if (url && !links[name]) {
+        links[name] = url;
+      }
+    }
+
+    return links;
   }
 
   private async execute(

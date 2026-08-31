@@ -38,7 +38,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('siauWeiChat.checkSetup', () =>
       checkSetup(context, extensionRoot)
-    )
+    ),
+
+    vscode.commands.registerCommand('siauWeiChat.selectSource', async () => {
+      ChatPanel.createOrShow(context);
+      await ChatPanel.currentPanel?.pickSource();
+    })
   );
 }
 

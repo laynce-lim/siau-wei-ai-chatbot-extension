@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import { DataProvider } from './dataProvider';
+import { DataSourceConfig, browserUrlFor } from './sources';
 
 const GRAPH_ROOT = 'https://graph.microsoft.com/v1.0';
 const GRAPH_SCOPES = ['https://graph.microsoft.com/Sites.Read.All', 'offline_access'];
@@ -22,6 +23,7 @@ interface DriveItem {
   name: string;
   size?: number;
   eTag?: string;
+  webUrl?: string;
   lastModifiedDateTime?: string;
   folder?: { childCount?: number };
   file?: { mimeType?: string };
@@ -37,6 +39,7 @@ interface CachedFile {
   eTag?: string;
   size?: number;
   lastModifiedDateTime?: string;
+  webUrl?: string;
 }
 
 type Manifest = Record<string, CachedFile>;
@@ -50,19 +53,35 @@ const SYNC_TTL_MS = 10 * 60 * 1000;
 
 export class SharePointDataProvider implements DataProvider {
   public readonly kind = 'sharepoint' as const;
+  private links = new Map<string, string>();
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    public readonly source: DataSourceConfig
+  ) {}
+
+  linkForFile(fileName: string): string | undefined {
+    const target = fileName.toLowerCase();
+
+    for (const [relativePath, url] of this.links) {
+      if (relativePath.toLowerCase().endsWith(target)) {
+        return url;
+      }
+    }
+
+    return browserUrlFor(this.source);
+  }
 
   getDataFolderUri(): vscode.Uri {
     return vscode.Uri.file(this.cacheFolder());
   }
 
   async prepareDataFolder(options?: { force?: boolean }): Promise<vscode.Uri> {
-    const settings = readSettings();
+    const settings = readSettings(this.source);
 
     if (!settings.siteUrl) {
       throw new Error(
-        'SharePoint mode is enabled but "siauWeiChat.sharePoint.siteUrl" is empty. ' +
+        `Source "${this.source.name}" has no siteUrl. ` +
           'Example: https://company.sharepoint.com/sites/TeamSite'
       );
     }
@@ -127,15 +146,16 @@ export class SharePointDataProvider implements DataProvider {
   }
 
   async describe(): Promise<string> {
-    const settings = readSettings();
     const stored = await this.readManifest();
     const count = Object.keys(stored.files).length;
 
     if (!stored.syncedAt) {
-      return `SharePoint: ${settings.siteUrl || 'not configured'} (not synced yet)`;
+      return `${this.source.name} — SharePoint, not synced yet`;
     }
 
-    return `SharePoint: ${count} file${count === 1 ? '' : 's'}, synced ${describeAge(stored.syncedAt)}`;
+    return `${this.source.name} — SharePoint, ${count} file${
+      count === 1 ? '' : 's'
+    }, synced ${describeAge(stored.syncedAt)}`;
   }
 
   private async getAccessToken(settings: SharePointSettings): Promise<string> {
@@ -165,7 +185,7 @@ export class SharePointDataProvider implements DataProvider {
   }
 
   private cacheFolder(): string {
-    const settings = readSettings();
+    const settings = readSettings(this.source);
     const key = crypto
       .createHash('sha256')
       .update(
@@ -238,7 +258,7 @@ export class SharePointDataProvider implements DataProvider {
             ...options,
             listUrl: `${GRAPH_ROOT}/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(
               item.id
-            )}/children?$top=200&$select=id,name,size,eTag,lastModifiedDateTime,folder,file,@microsoft.graph.downloadUrl`,
+            )}/children?$top=200&$select=id,name,size,eTag,webUrl,lastModifiedDateTime,folder,file,@microsoft.graph.downloadUrl`,
             relativePath: joinRelative(options.relativePath, item.name),
             depth: options.depth + 1
           });
@@ -256,8 +276,13 @@ export class SharePointDataProvider implements DataProvider {
         nextManifest[relativePath] = {
           eTag: item.eTag,
           size: item.size,
-          lastModifiedDateTime: item.lastModifiedDateTime
+          lastModifiedDateTime: item.lastModifiedDateTime,
+          webUrl: item.webUrl
         };
+
+        if (item.webUrl) {
+          this.links.set(relativePath, item.webUrl);
+        }
 
         const unchanged =
           cached &&
@@ -309,13 +334,14 @@ export class SharePointDataProvider implements DataProvider {
   }
 }
 
-function readSettings(): SharePointSettings {
+function readSettings(source: DataSourceConfig): SharePointSettings {
   const config = vscode.workspace.getConfiguration('siauWeiChat');
 
   return {
-    siteUrl: (config.get<string>('sharePoint.siteUrl') || '').trim(),
-    driveName: (config.get<string>('sharePoint.driveName') || 'Documents').trim(),
-    folderPath: (config.get<string>('sharePoint.folderPath') || '').trim(),
+    siteUrl: (source.siteUrl || '').trim(),
+    driveName: (source.driveName || 'Documents').trim(),
+    folderPath: (source.folderPath || '').trim(),
+    // Auth identifiers stay global; they are per tenant, not per folder.
     tenantId: (config.get<string>('sharePoint.tenantId') || '').trim(),
     clientId: (config.get<string>('sharePoint.clientId') || '').trim()
   };
@@ -401,7 +427,7 @@ async function resolveDriveId(
 
 function buildChildrenUrl(driveId: string, folderPath: string): string {
   const select =
-    '$top=200&$select=id,name,size,eTag,lastModifiedDateTime,folder,file,@microsoft.graph.downloadUrl';
+    '$top=200&$select=id,name,size,eTag,webUrl,lastModifiedDateTime,folder,file,@microsoft.graph.downloadUrl';
   const base = `${GRAPH_ROOT}/drives/${encodeURIComponent(driveId)}/root`;
   const cleaned = normalizeRemotePath(folderPath);
 

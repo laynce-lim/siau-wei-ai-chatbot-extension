@@ -112,6 +112,13 @@ export class ChatPanel {
             break;
           }
           case 'openDataFolder': {
+            const url = this.orchestrator.browserUrl();
+
+            if (url) {
+              await vscode.env.openExternal(vscode.Uri.parse(url));
+              break;
+            }
+
             try {
               const folder = await this.orchestrator.prepareDataFolder();
               await vscode.commands.executeCommand('revealFileInOS', folder);
@@ -121,11 +128,48 @@ export class ChatPanel {
             }
             break;
           }
+          case 'pickSource': {
+            await this.pickSource();
+            break;
+          }
         }
       },
       null,
       this.disposables
     );
+  }
+
+  public async pickSource(): Promise<void> {
+    const sources = this.orchestrator.listSources();
+    const active = this.orchestrator.activeSource;
+
+    if (sources.length < 2) {
+      vscode.window.showInformationMessage(
+        'Only one data source is configured. Add more entries to "siauWeiChat.sources" to switch between folders.'
+      );
+      return;
+    }
+
+    const picked = await vscode.window.showQuickPick(
+      sources.map((source) => ({
+        label: source.name === active.name ? `$(check) ${source.name}` : source.name,
+        description: source.kind === 'sharepoint' ? 'SharePoint' : 'Local folder',
+        detail: source.description ?? source.path ?? source.folderPath ?? source.siteUrl,
+        name: source.name
+      })),
+      { title: 'Select the data source to ask questions about', matchOnDetail: true }
+    );
+
+    if (!picked) {
+      return;
+    }
+
+    this.postStatus('Switching source...');
+    try {
+      this.postDataStatus(await this.orchestrator.selectSource(picked.name));
+    } finally {
+      this.postStatus('Ready');
+    }
   }
 
   private postAssistantMessage(text: string, debug?: unknown, chartPath?: string) {
@@ -179,7 +223,8 @@ export class ChatPanel {
         <p>Ask questions about Excel or CSV files in this VS Code workspace.</p>
         <p id="dataStatus" class="data-status">Checking data source...</p>
       </div>
-      <button id="openDataFolder" class="secondary">Open data folder</button>
+      <button id="pickSource" class="secondary">Change source</button>
+      <button id="openDataFolder" class="secondary">Open source</button>
       <button id="refreshData" class="secondary">Refresh data</button>
       <button id="newChat" class="secondary">New chat</button>
     </header>

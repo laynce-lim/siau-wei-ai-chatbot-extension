@@ -33,11 +33,65 @@
       {
         "command": "siauWeiChat.checkSetup",
         "title": "Siau Wei AI Chatbot: Check Setup"
+      },
+      {
+        "command": "siauWeiChat.selectSource",
+        "title": "Siau Wei AI Chatbot: Select Data Source"
       }
     ],
     "configuration": {
       "title": "Siau Wei AI Chatbot",
       "properties": {
+        "siauWeiChat.sources": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Named data sources to switch between. Each entry is either a local folder or a SharePoint location. When empty, the older `siauWeiChat.dataSource` and `siauWeiChat.dataFolder` settings are used instead.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Label shown in the source picker."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "sharepoint"
+                ],
+                "description": "Defaults to local when a path is given, or sharepoint when a siteUrl is given."
+              },
+              "path": {
+                "type": "string",
+                "description": "Local folder. Absolute, or relative to the open workspace. Use this for OneDrive-synced SharePoint folders."
+              },
+              "webUrl": {
+                "type": "string",
+                "description": "Optional browser link used by the Open source button and by links in answers."
+              },
+              "siteUrl": {
+                "type": "string",
+                "description": "SharePoint site URL, for example https://company.sharepoint.com/sites/TeamSite."
+              },
+              "driveName": {
+                "type": "string",
+                "default": "Documents",
+                "description": "SharePoint document library name."
+              },
+              "folderPath": {
+                "type": "string",
+                "description": "Folder path inside the document library."
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional note shown in the source picker."
+              }
+            }
+          }
+        },
         "siauWeiChat.dataSource": {
           "type": "string",
           "enum": [
