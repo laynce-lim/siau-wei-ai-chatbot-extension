@@ -257,6 +257,17 @@ in the chat.
 
 ### Multiple named sources (recommended)
 
+The easiest way to add a source is in the chat itself: click **Add folder**,
+choose the OneDrive-synced folder in the Windows folder picker, give it a short
+name, and start asking questions. The extension checks for CSV/Excel files,
+saves the path in your VS Code User Settings, and selects it immediately.
+
+The same guided picker is available from the Command Palette as
+**Siau Wei AI Chatbot: Add OneDrive Folder**. It opens at your OneDrive location
+when Windows provides one. No path copying or JSON editing is required.
+
+To add or maintain sources manually, use `siauWeiChat.sources` in Settings JSON:
+
 ```json
 "siauWeiChat.sources": [
   {
@@ -393,6 +404,7 @@ the model has to guess what the values look like.
 | `Siau Wei AI Chatbot: Sync Data Source`      | Signs in and syncs, or validates local mode. |
 | `Siau Wei AI Chatbot: Check Setup`           | Reports the Python interpreter, package versions and data status. |
 | `Siau Wei AI Chatbot: Install Dependencies`  | Installs Python when needed, then creates the extension Python environment and installs its packages. |
+| `Siau Wei AI Chatbot: Add OneDrive Folder`   | Opens a folder picker, saves a OneDrive-synced data folder, and selects it. |
 
 Run **Check Setup** first if anything misbehaves. It prints the interpreter the
 extension actually resolved, which package is missing, how many data files it
@@ -721,13 +733,13 @@ media/
 Package the extension:
 
 ```powershell
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.2.vsix"
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.3.vsix"
 ```
 
 This creates the installable extension file:
 
 ```
-siau-wei-ai-chatbot-extension-0.2.2.vsix
+siau-wei-ai-chatbot-extension-0.2.3.vsix
 ```
 
 To confirm the file was created, run:
@@ -747,7 +759,7 @@ Use this section when installing the packaged `.vsix` extension into VS Code.
 From the extension project root, install the VSIX:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.3.vsix" --force
 ```
 
 After installation, fully restart VS Code.
@@ -924,8 +936,8 @@ After making changes, recompile, repackage, reinstall the VSIX, and restart VS C
 
 ```powershell
 npm.cmd run compile
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.2.vsix"
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.3.vsix"
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.3.vsix" --force
 ```
 
 ### Cannot find `agents/01-router.agent.md`
@@ -962,7 +974,7 @@ F5 Extension Development Host
 or install the packaged VSIX:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.3.vsix" --force
 ```
 
 ### PowerShell blocks npm
@@ -982,7 +994,7 @@ npm run compile
 You can also use `npx.cmd` instead of `npx`:
 
 ```powershell
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.2.vsix"
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.3.vsix"
 ```
 
 ### VSIX is too large
@@ -1168,12 +1180,12 @@ Download the latest VSIX package from the
 [releases page](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/latest),
 or go straight to the current file:
 
-[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/download/v0.2.2/siau-wei-ai-chatbot-extension-0.2.2.vsix)
+[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/download/v0.2.3/siau-wei-ai-chatbot-extension-0.2.3.vsix)
 
 Then install it in PowerShell, using the file name you downloaded:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.3.vsix" --force
 ```
 
 After installation, restart VS Code.
@@ -1192,8 +1204,8 @@ After installation, restart VS Code.
 5. Sync the required SharePoint folder with OneDrive: in SharePoint select
   **Add shortcut to OneDrive** (or **Sync**), then select **Always keep on this
   device** in File Explorer.
-6. Add that synced folder as a source in VS Code settings. See
-  [Multiple named sources](#multiple-named-sources-recommended).
+6. In the chat, click **Add folder**, choose that synced folder, and give it a
+  short name. This saves the source automatically.
 7. Run **Siau Wei AI Chatbot: Open Chat** and select the folder in the
   **Folder / Source** dropdown.
 
@@ -1211,7 +1223,7 @@ Siau Wei AI Chatbot: Open Chat
 
 Download the full project ZIP:
 
-[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/archive/refs/tags/v0.2.2.zip)
+[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/archive/refs/tags/v0.2.3.zip)
 
 After downloading:
 

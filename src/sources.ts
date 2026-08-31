@@ -121,6 +121,39 @@ export async function setActiveSource(
   await context.globalState.update(ACTIVE_SOURCE_KEY, name);
 }
 
+/** Adds a user-selected OneDrive or local folder to the global source list. */
+export async function addLocalSource(source: DataSourceConfig): Promise<void> {
+  const existing = listSources();
+
+  if (existing.some((entry) => entry.name === source.name)) {
+    throw new Error(`A data source named "${source.name}" already exists.`);
+  }
+
+  const configured = config().get<unknown[]>('sources');
+  const entries = Array.isArray(configured) && configured.length
+    ? configured
+    : existing.map((entry) => ({
+        name: entry.name,
+        kind: entry.kind,
+        path: entry.path,
+        siteUrl: entry.siteUrl,
+        driveName: entry.driveName,
+        folderPath: entry.folderPath,
+        webUrl: entry.webUrl,
+        description: entry.description
+      }));
+
+  entries.push({
+    name: source.name,
+    kind: 'local',
+    path: source.path,
+    webUrl: source.webUrl,
+    description: source.description
+  });
+
+  await config().update('sources', entries, vscode.ConfigurationTarget.Global);
+}
+
 /** Best-effort browser link for a source, used by the Open in SharePoint action. */
 export function browserUrlFor(source: DataSourceConfig, subfolder: string = ''): string | undefined {
   if (source.webUrl) {

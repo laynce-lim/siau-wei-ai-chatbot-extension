@@ -9,6 +9,7 @@ const dataStatusEl = document.getElementById('dataStatus');
 const openDataFolder = document.getElementById('openDataFolder');
 const refreshData = document.getElementById('refreshData');
 const sourceSelect = document.getElementById('sourceSelect');
+const addFolder = document.getElementById('addFolder');
 const newChat = document.getElementById('newChat');
 
 let thinkingEl = null;
@@ -221,6 +222,7 @@ question.addEventListener('keydown', (event) => {
 });
 openDataFolder.addEventListener('click', () => vscode.postMessage({ command: 'openDataFolder' }));
 refreshData.addEventListener('click', () => vscode.postMessage({ command: 'refreshData' }));
+addFolder.addEventListener('click', () => vscode.postMessage({ command: 'addFolder' }));
 sourceSelect.addEventListener('change', () => {
   const value = sourceSelect.value;
   if (value) {

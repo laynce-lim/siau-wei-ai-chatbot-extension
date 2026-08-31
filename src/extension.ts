@@ -3,6 +3,7 @@ import * as path from 'path';
 import { ChatPanel } from './chatPanel';
 import { ToolRunner } from './toolRunner';
 import { createDataProvider, getConfiguredDataSource } from './dataProvider';
+import { addLocalSource, discoverSubfolders, setActiveSource } from './sources';
 
 interface EnvironmentReport {
   ok?: boolean;
@@ -44,11 +45,77 @@ export function activate(context: vscode.ExtensionContext) {
       installDependencies(context, extensionRoot)
     ),
 
+    vscode.commands.registerCommand('siauWeiChat.addOneDriveFolder', () =>
+      addOneDriveFolder(context)
+    ),
+
     vscode.commands.registerCommand('siauWeiChat.selectSource', async () => {
       ChatPanel.createOrShow(context);
       await ChatPanel.currentPanel?.pickSource();
     })
   );
+}
+
+async function addOneDriveFolder(context: vscode.ExtensionContext): Promise<string | undefined> {
+  const oneDrive = process.env.OneDriveCommercial || process.env.OneDrive;
+  const defaultUri = oneDrive ? vscode.Uri.file(oneDrive) : undefined;
+  const folders = await vscode.window.showOpenDialog({
+    title: 'Select the OneDrive folder containing your Excel or CSV files',
+    defaultUri,
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    openLabel: 'Use this folder'
+  });
+
+  if (!folders?.length) {
+    return undefined;
+  }
+
+  const folder = folders[0];
+  const discovered = discoverSubfolders(folder.fsPath);
+  const fileCount = discovered.find((entry) => entry.relativePath === '')?.fileCount ?? 0;
+
+  if (!fileCount) {
+    const useAnyway = await vscode.window.showWarningMessage(
+      'No CSV or Excel files were found in this folder or its subfolders. Add it anyway?',
+      'Add Folder'
+    );
+    if (useAnyway !== 'Add Folder') {
+      return undefined;
+    }
+  }
+
+  const defaultName = path.basename(folder.fsPath);
+  const name = await vscode.window.showInputBox({
+    title: 'Name this data source',
+    prompt: 'This name appears in the Folder / Source dropdown.',
+    value: defaultName,
+    validateInput: (value) => value.trim() ? undefined : 'A source name is required.'
+  });
+
+  if (!name?.trim()) {
+    return undefined;
+  }
+
+  try {
+    await addLocalSource({
+      name: name.trim(),
+      kind: 'local',
+      path: folder.fsPath,
+      description: `User-selected folder (${fileCount} data file${fileCount === 1 ? '' : 's'})`
+    });
+    await setActiveSource(context, name.trim());
+    vscode.window.showInformationMessage(
+      `Siau Wei AI Chatbot: added "${name.trim()}" with ${fileCount} data file${fileCount === 1 ? '' : 's'}.`
+    );
+    return name.trim();
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `Could not add the data folder: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return undefined;
+  }
 }
 
 async function checkSetup(context: vscode.ExtensionContext, extensionRoot: string): Promise<void> {

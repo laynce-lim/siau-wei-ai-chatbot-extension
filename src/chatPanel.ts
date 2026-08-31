@@ -167,6 +167,17 @@ export class ChatPanel {
             await this.pickSource();
             break;
           }
+          case 'addFolder': {
+            const name = await vscode.commands.executeCommand<string | undefined>(
+              'siauWeiChat.addOneDriveFolder'
+            );
+            if (name) {
+              const description = await this.orchestrator.selectSource(name);
+              this.postDataStatus(description);
+              await this.postSubfolders();
+            }
+            break;
+          }
         }
       },
       null,
@@ -320,6 +331,7 @@ export class ChatPanel {
             <option value="">Loading sources...</option>
           </select>
         </div>
+        <button id="addFolder" class="secondary">Add folder</button>
         <button id="openDataFolder" class="secondary">Open source</button>
         <button id="refreshData" class="secondary">Refresh data</button>
         <button id="newChat" class="secondary">New chat</button>
