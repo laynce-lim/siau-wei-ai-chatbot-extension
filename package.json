@@ -2,7 +2,7 @@
   "name": "siau-wei-ai-chatbot-extension",
   "displayName": "Siau Wei AI Chatbot",
   "description": "VS Code Copilot-powered chatbot for CCV platform utilization data.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "laynce",
   "repository": {
     "type": "git",
@@ -17,7 +17,8 @@
   "activationEvents": [
     "onCommand:siauWeiChat.openChat",
     "onCommand:siauWeiChat.syncData",
-    "onCommand:siauWeiChat.checkSetup"
+    "onCommand:siauWeiChat.checkSetup",
+    "onCommand:siauWeiChat.installDependencies"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -33,6 +34,10 @@
       {
         "command": "siauWeiChat.checkSetup",
         "title": "Siau Wei AI Chatbot: Check Setup"
+      },
+      {
+        "command": "siauWeiChat.installDependencies",
+        "title": "Siau Wei AI Chatbot: Install Dependencies"
       },
       {
         "command": "siauWeiChat.selectSource",

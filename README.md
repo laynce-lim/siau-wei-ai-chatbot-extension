@@ -392,11 +392,12 @@ the model has to guess what the values look like.
 | `Siau Wei AI Chatbot: Select Data Source`    | Chooses which configured source to query.   |
 | `Siau Wei AI Chatbot: Sync Data Source`      | Signs in and syncs, or validates local mode. |
 | `Siau Wei AI Chatbot: Check Setup`           | Reports the Python interpreter, package versions and data status. |
+| `Siau Wei AI Chatbot: Install Dependencies`  | Installs Python when needed, then creates the extension Python environment and installs its packages. |
 
 Run **Check Setup** first if anything misbehaves. It prints the interpreter the
 extension actually resolved, which package is missing, how many data files it
-can see, and offers to copy the exact `pip install` command for that
-interpreter.
+can see, and offers to run the dependency installer or copy the exact `pip`
+command for that interpreter.
 
 ---
 
@@ -423,19 +424,25 @@ For normal use:
 
 * VS Code
 * GitHub Copilot / VS Code language model access
-* Python installed and available from PowerShell
-* Python packages needed by the spreadsheet tools:
+* `winget` is recommended. It is included with current Windows 10/11 systems.
 
-  * pandas
-  * openpyxl
-  * python-dateutil
-  * matplotlib (charts)
+Python and the required packages are installed by the extension. Run
+**Siau Wei AI Chatbot: Install Dependencies** from the Command Palette. The
+command:
 
-Install Python packages with:
+1. Uses an existing Python when available.
+2. Otherwise runs `winget` to install Python 3.12 for the current Windows user.
+3. Creates a private environment at `%LOCALAPPDATA%\SiauWeiAIChatbot\python`.
+4. Installs `pandas`, `openpyxl`, `python-dateutil`, and `matplotlib` there.
+5. Configures the extension to use that environment automatically.
 
-```powershell
-python -m pip install pandas openpyxl python-dateutil matplotlib
-```
+The installer is explicit rather than silent: Windows may show a package or
+network approval prompt. It never requires a Python download before you choose
+the command.
+
+If `winget` is blocked by company policy, install Python 3.11 or later through
+your approved software channel, then run **Install Dependencies** again. The
+command will use the installed interpreter instead of trying `winget`.
 
 The packaged extension does **not** bundle a Python environment. It looks for an
 interpreter in this order:
@@ -714,13 +721,13 @@ media/
 Package the extension:
 
 ```powershell
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.1.vsix"
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.2.vsix"
 ```
 
 This creates the installable extension file:
 
 ```
-siau-wei-ai-chatbot-extension-0.2.1.vsix
+siau-wei-ai-chatbot-extension-0.2.2.vsix
 ```
 
 To confirm the file was created, run:
@@ -740,7 +747,7 @@ Use this section when installing the packaged `.vsix` extension into VS Code.
 From the extension project root, install the VSIX:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
 ```
 
 After installation, fully restart VS Code.
@@ -917,8 +924,8 @@ After making changes, recompile, repackage, reinstall the VSIX, and restart VS C
 
 ```powershell
 npm.cmd run compile
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.1.vsix"
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.2.vsix"
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
 ```
 
 ### Cannot find `agents/01-router.agent.md`
@@ -955,7 +962,7 @@ F5 Extension Development Host
 or install the packaged VSIX:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
 ```
 
 ### PowerShell blocks npm
@@ -975,7 +982,7 @@ npm run compile
 You can also use `npx.cmd` instead of `npx`:
 
 ```powershell
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.1.vsix"
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.2.vsix"
 ```
 
 ### VSIX is too large
@@ -1161,24 +1168,37 @@ Download the latest VSIX package from the
 [releases page](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/latest),
 or go straight to the current file:
 
-[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/download/v0.2.1/siau-wei-ai-chatbot-extension-0.2.1.vsix)
+[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/download/v0.2.2/siau-wei-ai-chatbot-extension-0.2.2.vsix)
 
 Then install it in PowerShell, using the file name you downloaded:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.2.vsix" --force
 ```
 
 After installation, restart VS Code.
 
-The extension does not bundle Python. Install the data tool packages once:
+### Complete fresh-system setup
 
-```powershell
-python -m pip install pandas openpyxl python-dateutil matplotlib
-```
+1. Install the VSIX using the command above (or Extensions → `...` → **Install
+  from VSIX**).
+2. Reload VS Code when prompted.
+3. Open the Command Palette with `Ctrl+Shift+P` and run
+  **Siau Wei AI Chatbot: Install Dependencies**. A visible terminal installs
+  Python if necessary, then creates the private environment and packages.
+4. Wait for **Setup complete** in that terminal, then run
+  **Siau Wei AI Chatbot: Check Setup**. It confirms the exact interpreter,
+  packages, configured data source, and number of readable files.
+5. Sync the required SharePoint folder with OneDrive: in SharePoint select
+  **Add shortcut to OneDrive** (or **Sync**), then select **Always keep on this
+  device** in File Explorer.
+6. Add that synced folder as a source in VS Code settings. See
+  [Multiple named sources](#multiple-named-sources-recommended).
+7. Run **Siau Wei AI Chatbot: Open Chat** and select the folder in the
+  **Folder / Source** dropdown.
 
-Then run `Siau Wei AI Chatbot: Check Setup` to confirm the interpreter and
-packages the extension will actually use.
+No Microsoft Graph login, Entra app registration, administrator ticket, or
+separate project download is needed when data is synced through OneDrive.
 
 Open a workspace folder that contains your spreadsheet data, then run:
 
@@ -1191,7 +1211,7 @@ Siau Wei AI Chatbot: Open Chat
 
 Download the full project ZIP:
 
-[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/archive/refs/tags/v0.2.1.zip)
+[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/archive/refs/tags/v0.2.2.zip)
 
 After downloading:
 

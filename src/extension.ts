@@ -40,6 +40,10 @@ export function activate(context: vscode.ExtensionContext) {
       checkSetup(context, extensionRoot)
     ),
 
+    vscode.commands.registerCommand('siauWeiChat.installDependencies', () =>
+      installDependencies(context, extensionRoot)
+    ),
+
     vscode.commands.registerCommand('siauWeiChat.selectSource', async () => {
       ChatPanel.createOrShow(context);
       await ChatPanel.currentPanel?.pickSource();
@@ -69,7 +73,13 @@ async function checkSetup(context: vscode.ExtensionContext, extensionRoot: strin
     output.appendLine(result.stderr || result.stdout || 'No output.');
     output.appendLine('');
     output.appendLine('Set "siauWeiChat.pythonPath" to a Python 3 executable and try again.');
-    vscode.window.showErrorMessage('Siau Wei AI Chatbot: Python could not be run. See the output panel.');
+    const choice = await vscode.window.showErrorMessage(
+      'Siau Wei AI Chatbot: Python could not be run. See the output panel.',
+      'Install Dependencies'
+    );
+    if (choice) {
+      await installDependencies(context, extensionRoot);
+    }
     return;
   }
 
@@ -109,10 +119,13 @@ async function checkSetup(context: vscode.ExtensionContext, extensionRoot: strin
 
     const choice = await vscode.window.showErrorMessage(
       `Siau Wei AI Chatbot is missing Python packages: ${report.missing.join(', ')}`,
+      'Install Dependencies',
       'Copy install command'
     );
 
-    if (choice && report.install_command) {
+    if (choice === 'Install Dependencies') {
+      await installDependencies(context, extensionRoot);
+    } else if (choice === 'Copy install command' && report.install_command) {
       await vscode.env.clipboard.writeText(report.install_command);
       vscode.window.showInformationMessage('Install command copied to the clipboard.');
     }
@@ -121,6 +134,39 @@ async function checkSetup(context: vscode.ExtensionContext, extensionRoot: strin
 
   output.appendLine('Setup looks good.');
   vscode.window.showInformationMessage('Siau Wei AI Chatbot: setup looks good.');
+}
+
+async function installDependencies(
+  context: vscode.ExtensionContext,
+  extensionRoot: string
+): Promise<void> {
+  const script = path.join(extensionRoot, 'tools', 'install_dependencies.ps1');
+  const requirements = path.join(extensionRoot, 'requirements.txt');
+  const venv = path.join(context.globalStorageUri.fsPath, 'python');
+
+  await vscode.workspace.getConfiguration('siauWeiChat').update(
+    'pythonPath',
+    path.join(venv, 'Scripts', 'python.exe'),
+    vscode.ConfigurationTarget.Global
+  );
+
+  const terminal = vscode.window.createTerminal({
+    name: 'Siau Wei AI Chatbot Setup',
+    hideFromUser: false
+  });
+  terminal.show();
+
+  const command = [
+    'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force;',
+    `& '${script.replace(/'/g, "''")}'`,
+    `-RequirementsFile '${requirements.replace(/'/g, "''")}'`,
+    `-VenvPath '${venv.replace(/'/g, "''")}'`
+  ].join(' ');
+  terminal.sendText(command, true);
+
+  vscode.window.showInformationMessage(
+    'Installing Python and chatbot dependencies in the Siau Wei AI Chatbot Setup terminal.'
+  );
 }
 
 function countDataFiles(json: unknown): number | undefined {
