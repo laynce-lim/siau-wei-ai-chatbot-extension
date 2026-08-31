@@ -47,6 +47,26 @@ def test_group_by_ranks_descending(data_folder):
     assert result["groups"][0]["Owner"] == "Alice"
 
 
+def test_whitespace_only_group_keys_count_as_blank(tmp_path):
+    import pandas as pd
+
+    folder = tmp_path / "data"
+    folder.mkdir()
+    pd.DataFrame([
+        {"Host": "a", "Owner": "Alice"},
+        {"Host": "b", "Owner": ""},
+        {"Host": "c", "Owner": "\u00a0"},
+        {"Host": "d", "Owner": "   "},
+        {"Host": "e", "Owner": None},
+    ]).to_csv(folder / "systems.csv", index=False)
+
+    result = run_plan(folder, {"group_by": "Owner", "metric": {"op": "count"}})
+    blanks = [row for row in result["groups"] if row["Owner"] is None]
+
+    assert len(blanks) == 1, "blank-like owners must form a single group"
+    assert blanks[0]["value"] == 4
+
+
 def test_average_metric(data_folder):
     result = run_plan(data_folder, {
         "filters": [{"column": "Config", "op": "eq", "value": "2S"}],

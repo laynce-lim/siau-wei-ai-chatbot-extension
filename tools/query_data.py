@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Tuple
 import pandas as pd
 
 from common import (
+    blank_mask,
     coerce_datetime,
     error_json,
     norm_text,
@@ -143,6 +144,11 @@ def pick_table(tables: List[Dict[str, Any]], plan: Dict[str, Any]) -> Dict[str, 
 def aggregate(df: pd.DataFrame, group_cols: List[str], metric: Dict[str, Any]) -> pd.DataFrame:
     op = norm_text(metric.get("op") or "count") or "count"
     column = metric.get("column")
+
+    # Otherwise a stray non-breaking space becomes its own category.
+    df = df.copy()
+    for group_column in group_cols:
+        df[group_column] = df[group_column].mask(blank_mask(df[group_column]), other=None)
 
     if op in {"count", "row_count"} or not column:
         result = df.groupby(group_cols, dropna=False).size().reset_index(name="value")

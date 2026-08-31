@@ -1,0 +1,130 @@
+{
+  "ok": true,
+  "data_folder": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent",
+  "file_count": 10,
+  "files": [
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\COR_SP\\Hardware_Capital\\COR_SP_Hardware_Purchase.xlsx",
+      "name": "COR_SP_Hardware_Purchase.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 845125,
+      "sheets": [
+        "JPOR",
+        "Capital Hardware Ordering"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\COR_SP.xlsx",
+      "name": "COR_SP.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 186670,
+      "sheets": [
+        "JPOR",
+        "Capital Hardware Ordering",
+        "Sheet3",
+        "System",
+        "Sheet2",
+        "BTI_Rack_SC_Mahbub",
+        "Sheet1"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\DMR.xlsx",
+      "name": "DMR.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 3378314,
+      "sheets": [
+        "WW23_passdown",
+        "WW28_passdown ",
+        "WW24_passdown",
+        "WW26_passdown",
+        "AP1 memory",
+        "Sheet1",
+        "Schedule",
+        "Sheet2",
+        "Contact",
+        "WeeklyReport",
+        "Memory_FV_EV",
+        "Link"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\Indicator_Dashboard.xlsx",
+      "name": "Indicator_Dashboard.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 17325,
+      "sheets": [
+        "Indicator_Dashboard"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\NWP.xlsx",
+      "name": "NWP.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 20634,
+      "sheets": [
+        "Link",
+        "Hardware",
+        "Test_Chip",
+        "Contact",
+        "PVIM Structure "
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\RPP.xlsx",
+      "name": "RPP.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 14386,
+      "sheets": [
+        "Sheet1"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\Segment_Customer_Val_Tean.xlsx",
+      "name": "Segment_Customer_Val_Tean.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 16725,
+      "sheets": [
+        "Indicator_Dashboard",
+        "FuseOveride"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\WW27_DMR\\DMR AP1 B0 PO VIS sku export bs response ww26.5'26.xlsx",
+      "name": "DMR AP1 B0 PO VIS sku export bs response ww26.5'26.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 45107,
+      "sheets": [
+        "ag-grid"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\WW27_DMR\\VIS_PO_ES A0 iMH1 WW25.2'26 (1).xlsx",
+      "name": "VIS_PO_ES A0 iMH1 WW25.2'26 (1).xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 186097,
+      "sheets": [
+        "Change control",
+        "PO",
+        "VIS-1",
+        "VIS",
+        "ES0",
+        "ES1",
+        "ES2"
+      ]
+    },
+    {
+      "path": "C:\\Users\\laynceli\\OneDrive - Intel Corporation\\DCG-PSE-XVE - VST_Agent\\WW27_DMR\\WW27_DMR AP1_AP2 Pending FW Fix and W_A for FV_PV.xlsx",
+      "name": "WW27_DMR AP1_AP2 Pending FW Fix and W_A for FV_PV.xlsx",
+      "extension": ".xlsx",
+      "size_bytes": 74916,
+      "sheets": [
+        "Pending FW Fix_HSD_Query ",
+        "Sheet1",
+        "Data_FW_TechForum",
+        "Sheet5",
+        "Indicator"
+      ]
+    }
+  ]
+}

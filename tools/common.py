@@ -140,7 +140,27 @@ def load_frame(file_path: Path, sheet: str, use_cache: bool) -> pd.DataFrame:
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     clean = df.copy()
     clean.columns = [str(c).strip() for c in clean.columns]
-    return clean
+
+    # Excel exports pad sheets with empty "Unnamed: N" columns that carry no data.
+    filler = [
+        column
+        for column in clean.columns
+        if re.fullmatch(r"Unnamed:\s*\d+", str(column)) and is_blank_column(clean[column])
+    ]
+
+    return clean.drop(columns=filler) if filler else clean
+
+
+def is_blank_column(series: pd.Series) -> bool:
+    non_null = series.dropna()
+    if non_null.empty:
+        return True
+    return bool((non_null.astype(str).str.strip() == "").all())
+
+
+def blank_mask(series: pd.Series) -> pd.Series:
+    """Whitespace-only cells, including non-breaking spaces, count as missing."""
+    return series.isna() | (series.astype(str).str.strip() == "")
 
 
 def norm_text(value: Any) -> str:
