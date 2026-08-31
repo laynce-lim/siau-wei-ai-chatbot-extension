@@ -714,13 +714,13 @@ media/
 Package the extension:
 
 ```powershell
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.0.vsix"
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.1.vsix"
 ```
 
 This creates the installable extension file:
 
 ```
-siau-wei-ai-chatbot-extension-0.2.0.vsix
+siau-wei-ai-chatbot-extension-0.2.1.vsix
 ```
 
 To confirm the file was created, run:
@@ -740,7 +740,7 @@ Use this section when installing the packaged `.vsix` extension into VS Code.
 From the extension project root, install the VSIX:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.0.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
 ```
 
 After installation, fully restart VS Code.
@@ -917,8 +917,8 @@ After making changes, recompile, repackage, reinstall the VSIX, and restart VS C
 
 ```powershell
 npm.cmd run compile
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.0.vsix"
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.0.vsix" --force
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.1.vsix"
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
 ```
 
 ### Cannot find `agents/01-router.agent.md`
@@ -955,7 +955,7 @@ F5 Extension Development Host
 or install the packaged VSIX:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.0.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
 ```
 
 ### PowerShell blocks npm
@@ -975,7 +975,7 @@ npm run compile
 You can also use `npx.cmd` instead of `npx`:
 
 ```powershell
-npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.0.vsix"
+npx.cmd @vscode/vsce package --out ".\siau-wei-ai-chatbot-extension-0.2.1.vsix"
 ```
 
 ### VSIX is too large
@@ -1161,12 +1161,12 @@ Download the latest VSIX package from the
 [releases page](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/latest),
 or go straight to the current file:
 
-[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/download/v0.2.0/siau-wei-ai-chatbot-extension-0.2.0.vsix)
+[Download Siau Wei AI Chatbot Extension VSIX](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/releases/download/v0.2.1/siau-wei-ai-chatbot-extension-0.2.1.vsix)
 
 Then install it in PowerShell, using the file name you downloaded:
 
 ```powershell
-code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.0.vsix" --force
+code --install-extension ".\siau-wei-ai-chatbot-extension-0.2.1.vsix" --force
 ```
 
 After installation, restart VS Code.
@@ -1191,7 +1191,7 @@ Siau Wei AI Chatbot: Open Chat
 
 Download the full project ZIP:
 
-[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/archive/refs/tags/v0.2.0.zip)
+[Download Full Windows Project ZIP](https://github.com/laynce-lim/siau-wei-ai-chatbot-extension/archive/refs/tags/v0.2.1.zip)
 
 After downloading:
 
