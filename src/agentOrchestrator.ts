@@ -4,7 +4,15 @@ import * as path from 'path';
 import { CopilotClient } from './copilotClient';
 import { ToolRunner, ToolResult } from './toolRunner';
 import { DataProvider, createDataProvider, getConfiguredDataSource } from './dataProvider';
-import { DataSourceConfig, browserUrlFor, getActiveSource, listSources, setActiveSource } from './sources';
+import {
+  DataSourceConfig,
+  DiscoveredSubfolder,
+  browserUrlFor,
+  discoverSubfolders,
+  getActiveSource,
+  listSources,
+  setActiveSource
+} from './sources';
 
 type PlanMode = 'query' | 'trend' | 'join' | 'chart' | 'clarify';
 
@@ -72,6 +80,7 @@ export class AgentOrchestrator {
   private readonly tools: ToolRunner;
   private history: Turn[] = [];
   private profileCache?: { folder: string; at: number; json: unknown };
+  private _activeSubfolder: string = '';
 
   constructor(private readonly context: vscode.ExtensionContext) {
     // __dirname is usually:
@@ -97,6 +106,10 @@ export class AgentOrchestrator {
     return getActiveSource(this.context);
   }
 
+  get activeSubfolder(): string {
+    return this._activeSubfolder;
+  }
+
   listSources(): DataSourceConfig[] {
     return listSources();
   }
@@ -104,28 +117,59 @@ export class AgentOrchestrator {
   /** Switching source invalidates the cached profile, which is per folder. */
   async selectSource(name: string): Promise<string> {
     await setActiveSource(this.context, name);
+    this._activeSubfolder = '';
     this.profileCache = undefined;
+    this.history = [];
+    return this.describeDataSource();
+  }
+
+  async selectSubfolder(subfolder: string): Promise<string> {
+    this._activeSubfolder = subfolder;
+    this.profileCache = undefined;
+    this.history = [];
     return this.describeDataSource();
   }
 
   browserUrl(): string | undefined {
-    return browserUrlFor(this.activeSource);
+    return browserUrlFor(this.activeSource, this._activeSubfolder);
   }
 
   getDataFolderUri(): vscode.Uri {
-    return this.dataProvider.getDataFolderUri();
+    const baseUri = this.dataProvider.getDataFolderUri();
+    if (this._activeSubfolder) {
+      return vscode.Uri.file(path.join(baseUri.fsPath, ...this._activeSubfolder.split('/')));
+    }
+    return baseUri;
   }
 
   /** Signs in and syncs when in SharePoint mode; validates the folder in local mode. */
   async prepareDataFolder(options?: { force?: boolean }): Promise<vscode.Uri> {
-    return this.dataProvider.prepareDataFolder(options);
+    const baseUri = await this.dataProvider.prepareDataFolder(options);
+    if (this._activeSubfolder) {
+      return vscode.Uri.file(path.join(baseUri.fsPath, ...this._activeSubfolder.split('/')));
+    }
+    return baseUri;
   }
 
   async describeDataSource(): Promise<string> {
     try {
-      return await this.dataProvider.describe();
+      const baseDesc = await this.dataProvider.describe();
+      if (this._activeSubfolder) {
+        return `${this.activeSource.name} / ${this._activeSubfolder.replace(/\//g, ' / ')} — ${baseDesc}`;
+      }
+      return baseDesc;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  async discoverSubfoldersForSource(source?: DataSourceConfig): Promise<DiscoveredSubfolder[]> {
+    try {
+      const provider = createDataProvider(this.context, this.extensionRoot, source ?? this.activeSource);
+      const uri = await provider.prepareDataFolder();
+      return discoverSubfolders(uri.fsPath);
+    } catch {
+      return [];
     }
   }
 

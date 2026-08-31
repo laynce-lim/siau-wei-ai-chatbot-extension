@@ -222,9 +222,9 @@ question.addEventListener('keydown', (event) => {
 openDataFolder.addEventListener('click', () => vscode.postMessage({ command: 'openDataFolder' }));
 refreshData.addEventListener('click', () => vscode.postMessage({ command: 'refreshData' }));
 sourceSelect.addEventListener('change', () => {
-  const name = sourceSelect.value;
-  if (name) {
-    vscode.postMessage({ command: 'selectSource', name });
+  const value = sourceSelect.value;
+  if (value) {
+    vscode.postMessage({ command: 'selectSource', value });
   }
 });
 newChat.addEventListener('click', () => {
@@ -271,12 +271,31 @@ window.addEventListener('message', (event) => {
       break;
     case 'sources':
       sourceSelect.innerHTML = '';
-      if (!message.sources || message.sources.length === 0) {
-        const opt = document.createElement('option');
-        opt.value = '';
-        opt.textContent = 'No sources configured';
-        sourceSelect.appendChild(opt);
-      } else {
+      if (message.groups && message.groups.length > 0) {
+        message.groups.forEach((group) => {
+          const container = message.groups.length > 1
+            ? document.createElement('optgroup')
+            : sourceSelect;
+
+          if (message.groups.length > 1) {
+            container.label = group.sourceName;
+          }
+
+          group.options.forEach((optData) => {
+            const opt = document.createElement('option');
+            opt.value = optData.value;
+            opt.textContent = optData.label;
+            if (optData.value === message.active) {
+              opt.selected = true;
+            }
+            container.appendChild(opt);
+          });
+
+          if (message.groups.length > 1) {
+            sourceSelect.appendChild(container);
+          }
+        });
+      } else if (message.sources && message.sources.length > 0) {
         message.sources.forEach((src) => {
           const opt = document.createElement('option');
           opt.value = src.name;
@@ -286,6 +305,11 @@ window.addEventListener('message', (event) => {
           }
           sourceSelect.appendChild(opt);
         });
+      } else {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'No data sources found';
+        sourceSelect.appendChild(opt);
       }
       break;
   }

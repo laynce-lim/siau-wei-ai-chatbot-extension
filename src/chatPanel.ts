@@ -46,7 +46,7 @@ export class ChatPanel {
     this.disposables.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('siauWeiChat')) {
-          this.postSources();
+          this.postSubfolders();
           this.orchestrator.describeDataSource().then((d) => this.postDataStatus(d));
         }
       })
@@ -103,6 +103,7 @@ export class ChatPanel {
             try {
               const description = await this.orchestrator.refreshData();
               this.postDataStatus(description);
+              await this.postSubfolders();
             } catch (error: unknown) {
               const err = error instanceof Error ? error.message : String(error);
               this.postAssistantMessage(`Could not refresh the data: ${err}`);
@@ -113,17 +114,24 @@ export class ChatPanel {
           }
           case 'ready': {
             this.postDataStatus(await this.orchestrator.describeDataSource());
-            this.postSources();
+            await this.postSubfolders();
             break;
           }
           case 'selectSource': {
-            const name = (message as { name?: string }).name;
-            if (name) {
+            const value = (message as { name?: string; value?: string }).value ?? (message as { name?: string }).name;
+            if (value) {
+              const parts = value.split('||');
+              const sourceName = parts[0];
+              const subfolder = parts[1] ?? '';
+
               this.postStatus('Switching source...');
               try {
-                const description = await this.orchestrator.selectSource(name);
+                if (sourceName !== this.orchestrator.activeSource.name) {
+                  await this.orchestrator.selectSource(sourceName);
+                }
+                const description = await this.orchestrator.selectSubfolder(subfolder);
                 this.postDataStatus(description);
-                this.postSources();
+                await this.postSubfolders();
               } catch (error: unknown) {
                 const err = error instanceof Error ? error.message : String(error);
                 this.postAssistantMessage(`Could not switch data source: ${err}`);
@@ -168,24 +176,44 @@ export class ChatPanel {
 
   public async pickSource(): Promise<void> {
     const sources = this.orchestrator.listSources();
-    const active = this.orchestrator.activeSource;
 
-    if (sources.length < 2) {
-      vscode.window.showInformationMessage(
-        'Only one data source is configured. Add more entries to "siauWeiChat.sources" to switch between folders.'
-      );
+    const items: Array<vscode.QuickPickItem & { sourceName: string; subfolder: string }> = [];
+
+    for (const source of sources) {
+      const subfolders = await this.orchestrator.discoverSubfoldersForSource(source);
+      for (const sub of subfolders) {
+        const isCurrent =
+          source.name === this.orchestrator.activeSource.name &&
+          sub.relativePath === this.orchestrator.activeSubfolder;
+
+        const isRoot = sub.relativePath === '';
+        const label = isCurrent
+          ? `$(check) ${isRoot ? source.name : sub.displayName}`
+          : isRoot
+          ? source.name
+          : `📁 ${sub.displayName}`;
+
+        items.push({
+          label,
+          description: isRoot
+            ? `${source.kind === 'sharepoint' ? 'SharePoint' : 'Local'} (${sub.fileCount} files)`
+            : `${sub.fileCount} file${sub.fileCount === 1 ? '' : 's'}`,
+          detail: source.description ?? source.path ?? source.folderPath ?? source.siteUrl,
+          sourceName: source.name,
+          subfolder: sub.relativePath
+        });
+      }
+    }
+
+    if (items.length === 0) {
+      vscode.window.showInformationMessage('No data sources or folders found.');
       return;
     }
 
-    const picked = await vscode.window.showQuickPick(
-      sources.map((source) => ({
-        label: source.name === active.name ? `$(check) ${source.name}` : source.name,
-        description: source.kind === 'sharepoint' ? 'SharePoint' : 'Local folder',
-        detail: source.description ?? source.path ?? source.folderPath ?? source.siteUrl,
-        name: source.name
-      })),
-      { title: 'Select the data source to ask questions about', matchOnDetail: true }
-    );
+    const picked = await vscode.window.showQuickPick(items, {
+      title: 'Select the folder / source to ask questions about',
+      matchOnDetail: true
+    });
 
     if (!picked) {
       return;
@@ -193,8 +221,11 @@ export class ChatPanel {
 
     this.postStatus('Switching source...');
     try {
-      this.postDataStatus(await this.orchestrator.selectSource(picked.name));
-      this.postSources();
+      if (picked.sourceName !== this.orchestrator.activeSource.name) {
+        await this.orchestrator.selectSource(picked.sourceName);
+      }
+      this.postDataStatus(await this.orchestrator.selectSubfolder(picked.subfolder));
+      await this.postSubfolders();
     } finally {
       this.postStatus('Ready');
     }
@@ -216,17 +247,34 @@ export class ChatPanel {
     this.panel.webview.postMessage({ command: 'dataStatus', text });
   }
 
-  private postSources() {
+  private async postSubfolders() {
     const sources = this.orchestrator.listSources();
-    const active = this.orchestrator.activeSource;
+    const activeSource = this.orchestrator.activeSource;
+    const activeSubfolder = this.orchestrator.activeSubfolder;
+
+    const groups = await Promise.all(
+      sources.map(async (source) => {
+        const subfolders = await this.orchestrator.discoverSubfoldersForSource(source);
+        return {
+          sourceName: source.name,
+          options: subfolders.map((sub) => {
+            const value = `${source.name}||${sub.relativePath}`;
+            const isRoot = sub.relativePath === '';
+            const label = isRoot
+              ? `${source.name} (All ${sub.fileCount} file${sub.fileCount === 1 ? '' : 's'})`
+              : `📁 ${sub.displayName} (${sub.fileCount} file${sub.fileCount === 1 ? '' : 's'})`;
+            return { label, value, subfolder: sub.relativePath };
+          })
+        };
+      })
+    );
+
+    const activeValue = `${activeSource.name}||${activeSubfolder}`;
+
     this.panel.webview.postMessage({
       command: 'sources',
-      sources: sources.map((s) => ({
-        name: s.name,
-        description: s.description ?? s.path ?? s.folderPath ?? s.siteUrl ?? '',
-        kind: s.kind
-      })),
-      active: active.name
+      groups,
+      active: activeValue
     });
   }
 

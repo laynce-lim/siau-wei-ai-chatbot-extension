@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export type SourceKind = 'local' | 'sharepoint';
 
@@ -14,6 +16,14 @@ export interface DataSourceConfig {
   webUrl?: string;
   description?: string;
 }
+
+export interface DiscoveredSubfolder {
+  relativePath: string; // "" for root, "COR_SP", "WW27_DMR", etc.
+  displayName: string;  // "All Files", "COR_SP", "WW27_DMR"
+  fileCount: number;
+}
+
+const DATA_EXTENSIONS = new Set(['.csv', '.xlsx', '.xlsm', '.xlsb', '.xls']);
 
 const ACTIVE_SOURCE_KEY = 'siauWeiChat.activeSource';
 
@@ -112,9 +122,18 @@ export async function setActiveSource(
 }
 
 /** Best-effort browser link for a source, used by the Open in SharePoint action. */
-export function browserUrlFor(source: DataSourceConfig): string | undefined {
+export function browserUrlFor(source: DataSourceConfig, subfolder: string = ''): string | undefined {
   if (source.webUrl) {
-    return source.webUrl;
+    const base = source.webUrl.replace(/\/+$/, '');
+    if (!subfolder) {
+      return base;
+    }
+    const encodedSub = subfolder
+      .split(/[\\/]+/)
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
+    return `${base}/${encodedSub}`;
   }
 
   if (source.kind !== 'sharepoint' || !source.siteUrl) {
@@ -122,15 +141,86 @@ export function browserUrlFor(source: DataSourceConfig): string | undefined {
   }
 
   const site = source.siteUrl.replace(/\/+$/, '');
-  if (!source.folderPath) {
+  const combinedPath = [source.folderPath, subfolder].filter(Boolean).join('/');
+
+  if (!combinedPath) {
     return site;
   }
 
-  const encoded = source.folderPath
+  const encoded = combinedPath
     .split(/[\\/]+/)
     .filter(Boolean)
     .map((segment) => encodeURIComponent(segment))
     .join('/');
 
   return `${site}/Shared%20Documents/${encoded}`;
+}
+
+export function discoverSubfolders(rootPath: string): DiscoveredSubfolder[] {
+  if (!fs.existsSync(rootPath)) {
+    return [];
+  }
+
+  const fileCounts = new Map<string, number>();
+
+  function walk(dirPath: string, relativeDir: string) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    let directFileCount = 0;
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        const childRelative = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
+        walk(fullPath, childRelative);
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (DATA_EXTENSIONS.has(ext)) {
+          directFileCount++;
+        }
+      }
+    }
+
+    if (directFileCount > 0 || relativeDir === '') {
+      fileCounts.set(relativeDir, directFileCount);
+    }
+  }
+
+  walk(rootPath, '');
+
+  const subfolders: DiscoveredSubfolder[] = [];
+
+  for (const [relPath] of fileCounts) {
+    let totalFiles = 0;
+    for (const [otherRel, count] of fileCounts) {
+      if (
+        otherRel === relPath ||
+        (relPath !== '' && (otherRel === relPath || otherRel.startsWith(relPath + '/')))
+      ) {
+        totalFiles += count;
+      }
+    }
+
+    if (totalFiles > 0) {
+      const displayName = relPath === '' ? 'All Files' : relPath.replace(/\//g, ' / ');
+      subfolders.push({
+        relativePath: relPath,
+        displayName,
+        fileCount: totalFiles
+      });
+    }
+  }
+
+  subfolders.sort((a, b) => {
+    if (a.relativePath === '') return -1;
+    if (b.relativePath === '') return 1;
+    return a.relativePath.localeCompare(b.relativePath);
+  });
+
+  return subfolders;
 }
